@@ -1607,6 +1607,52 @@ Node* find_ctrl(const int idx) {
   return Compile::current()->root()->find_ctrl(idx);
 }
 
+// Call this from debugger:
+// Starting at a phi node, traverse inputs (not control)
+// Traverse phi nodes recursively
+// Print and count all non-phi, non-NULL inputs
+int traverse_phi(const int idx) {
+  Node* root_phi = find_node(idx);
+  if( !root_phi->isa_Phi() ) {
+    tty->print("traverse_phi: input is not a phi node:\n");
+    root_phi->dump();
+    return 0;
+  }
+
+  Node_Stack stack(1);
+  VectorSet  visited;
+  int cnt = 0;
+
+  stack.push(root_phi, 1); // ignore control
+  visited.set(root_phi->_idx);
+
+  while (stack.is_nonempty()) {
+    Node* n   = stack.node();
+    uint  idx = stack.index();
+    if (idx < n->req()) {
+      stack.set_index(idx + 1);
+      Node* in = n->in(idx);
+      if (in == NULL) {
+        continue; // ignore dead path
+      } else if (in->isa_Phi()) {
+        if (!visited.test_set(in->_idx)) {
+          stack.push(in, 1); // ignore control
+          tty->print("# phi found:\n");
+	  in->dump();
+	}
+      } else {
+        if (!visited.test_set(in->_idx)) {
+          tty->print("# %d: interesting input found:\n",cnt++);
+	  in->dump();
+	}
+      }
+    } else {
+      stack.pop();
+    }
+  }
+  return cnt;
+}
+
 //------------------------------find_ctrl--------------------------------------
 // Find an ancestor to this node in the control history with given _idx
 Node* Node::find_ctrl(int idx) {
