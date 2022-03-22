@@ -1611,8 +1611,12 @@ Node* find_ctrl(const int idx) {
 // Starting at a phi node, traverse inputs (not control)
 // Traverse phi nodes recursively
 // Print and count all non-phi, non-NULL inputs
-int traverse_phi(const int idx) {
+int traverse_phi(const int idx, bool printNonPhi) {
   Node* root_phi = find_node(idx);
+  if( root_phi == NULL ) {
+    tty->print("traverse_phi: node idx not found: %d\n",idx);
+    return 0;
+  }
   if( !root_phi->isa_Phi() ) {
     tty->print("traverse_phi: input is not a phi node:\n");
     root_phi->dump();
@@ -1641,8 +1645,8 @@ int traverse_phi(const int idx) {
 	  in->dump();
 	}
       } else {
-        if (!visited.test_set(in->_idx)) {
-          tty->print("# %d: interesting input found:\n",cnt++);
+        if (!visited.test_set(in->_idx) && printNonPhi) {
+          tty->print("# %d: interesting input found in node %d _in[%d]\n",cnt++,n->_idx,idx);
 	  in->dump();
 	}
       }
@@ -1652,6 +1656,57 @@ int traverse_phi(const int idx) {
   }
   return cnt;
 }
+
+// Call this from debugger:
+// Starting at a region node, traverse inputs (only control)
+// Traverse region nodes recursively
+int traverse_cfg(const int idx, bool printNonCfg = false) {
+  Node* root_cfg = find_node(idx);
+  if( root_cfg == NULL ) {
+    tty->print("traverse_cfg: node idx not found: %d\n",idx);
+    return 0;
+  }
+  if( !root_cfg->is_CFG() ) {
+    tty->print("traverse_cfg: input is not a cfg node:\n");
+    root_cfg->dump();
+    return 0;
+  }
+
+  Node_Stack stack(1);
+  VectorSet  visited;
+  int cnt = 0;
+
+  stack.push(root_cfg, 0); // also take control
+  visited.set(root_cfg->_idx);
+
+  while (stack.is_nonempty()) {
+    Node* n   = stack.node();
+    uint  idx = stack.index();
+    if (idx < n->req()) {
+      stack.set_index(idx + 1);
+      Node* in = n->in(idx);
+      if (in == NULL) {
+        continue; // ignore dead path
+      } else if (in->is_CFG() ) {
+        if (!visited.test_set(in->_idx)) {
+          stack.push(in, 0); // also take control
+          tty->print("# cfg found:\n");
+          in->dump();
+        }
+      } else {
+        if (!visited.test_set(in->_idx) && printNonCfg) {
+          tty->print("# %d: interesting input found in node %d _in[%d]\n",cnt++,n->_idx,idx);
+          in->dump();
+        }
+      }
+    } else {
+      stack.pop();
+    }
+  }
+  return cnt;
+}
+
+
 
 //------------------------------find_ctrl--------------------------------------
 // Find an ancestor to this node in the control history with given _idx
