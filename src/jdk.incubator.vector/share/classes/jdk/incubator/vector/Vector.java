@@ -3856,7 +3856,7 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * logical result, in which case a non-zero {@code part} number
      * can further control the selection and steering of the logical
      * result into the physical output vector.
-     * TODO: non-zero part?
+     * TODO: non-zero part? steering?
      *
      * <p> Each specific conversion is described by a conversion
      * constant in the class {@link VectorOperators}.  Each conversion
@@ -3981,7 +3981,7 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      *
      * @param conv the desired scalar conversion to apply lane-wise
      * @param part the <a href="Vector.html#expansion">part number</a>
-     *        of the result, or zero if neither expanding nor contracting
+     *        of the result, or zero if in-place
      * @param <F> the boxed element type of the species
      * @return a vector converted by shape and element type from this vector
      * @throws ArrayIndexOutOfBoundsException unless {@code part} is zero,
@@ -4020,14 +4020,32 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      *
      * <p> As a combined effect of shape changes and lane size changes,
      * the input and output species may have different lane counts, causing
-     * <a href="Vector.html#expansion">expansion or contraction</a>.
-     * In this case a non-zero {@code part} parameter selects
-     * partial results from an expanded logical result, or steers
-     * the results of a contracted logical result into a physical
-     * output vector of the required output species.
+     * <a href="Vector.html#expansion">expansion or contraction</a>, and
+     * require selection or insertion.
+     * Conceptually, the input is lane-wise converted into a logical
+     * result that contains all converted elements, leading to a
+     * logical expansion ratio {@code ML = |FTYPE|/|ETYPE|}.
+     * The logical result may not fit the output shape exactly:
+     *
+     * <ul>
+     * <li> Exact fit (in-place): the expansion or contraction of the
+     * physical shape matches the expansion or contraction of the
+     * elements ({@code MP=ML}). We must have {@code part=0}.
+     * <li> Logical result is {@code MS>1} times larger than the
+     * output shape (selection): The {@code part} number in range
+     * {@code [0..MS-1]} determines which of the {@code MS}
+     * distinct parts from the logical result is selected for the output.
+     * The rest of the logical result is lost.
+     * <li> Output shape is {@code MO>1} times larger than the
+     * logical result (insertion): The {@code part} number in range
+     * {@code [-(MO-1)..0]} determines to which of the {@code MO}
+     * distinct positions of the output the logical result is inserted.
+     * The rest of the output is padded with zero bits.
+     * </ul>
      *
      * <p >The following pseudocode illustrates the behavior of this
-     * method for in-place, expanding, and contracting conversions.
+     * method for in-place conversions, and those with selection or
+     * insertion.
      * (This pseudocode also applies to the shape-invariant method,
      * but with shape restrictions on the output species.)
      * Note that only one of the three code paths is relevant to any
@@ -4049,14 +4067,14 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * if (domlen == ranlen) { // MS=MO=1 => in-place
      *     assert part == 0; //else AIOOBE
      *     physical = logical;
-     * } else if (domlen > ranlen) { // M=MS>1 => selection
-     *     int M = domlen / ranlen;
-     *     assert 0 <= part && part < M; //else AIOOBE
+     * } else if (domlen > ranlen) { // MS>1 => selection
+     *     int MS = domlen / ranlen;
+     *     assert 0 <= part && part < MS; //else AIOOBE
      *     int origin = part * ranlen;
      *     physical = Arrays.copyOfRange(logical, origin, origin + ranlen);
-     * } else { // (domlen < ranlen) // M=MO>1 => insertion, padding
-     *     int M = ranlen / domlen;
-     *     assert 0 >= part && part > -M; //else AIOOBE
+     * } else { // (domlen < ranlen) // MO>1 => insertion, padding
+     *     int MO = ranlen / domlen;
+     *     assert 0 >= part && part > -MO; //else AIOOBE
      *     int origin = -part * domlen;
      *     System.arraycopy(logical, 0, physical, origin, domlen);
      * }
@@ -4066,7 +4084,7 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * @param conv the desired scalar conversion to apply lane-wise
      * @param rsp the desired output species
      * @param part the <a href="Vector.html#expansion">part number</a>
-     *        of the result, or zero if neither expanding nor contracting
+     *        of the result, or zero if in-place
      * @param <F> the boxed element type of the output species
      * @return a vector converted by element type from this vector
      * @see #convert(VectorOperators.Conversion,int)
