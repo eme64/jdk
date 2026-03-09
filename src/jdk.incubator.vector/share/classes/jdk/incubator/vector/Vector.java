@@ -3917,7 +3917,7 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * following cases:
      *
      * <ul>
-     * <li> Lanewise in-place conversion operator (|ETYPE|=|FTYPE|):
+     * <li> Lanewise in-place conversion operator ({@code |ETYPE|=|FTYPE|}):
      * The input, logical result and output have the same number of
      * lanes and size in bits ({@code ML=MP=1}). The logical result
      * fits the output exactly, and we always have {@code part=0}.
@@ -3925,7 +3925,7 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * <p> All conversions are delivered in one output vector, without
      * wasting lanes.
      *
-     * <li> Lanewise expanding conversion operator (|ETYPE|<|FTYPE|):
+     * <li> Lanewise expanding conversion operator ({@code |ETYPE|<|FTYPE|}):
      * The logical expansion {@code ML=|FTYPE|/|ETYPE|>1} means the
      * logical result is {@code MS=ML} times larger than the output.
      *
@@ -3940,7 +3940,7 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * selections of logical results, can (manually) represent the
      * complete logical result of the conversion.
      *
-     * <li> Lanewise contracting conversion operator (|ETYPE|<|FTYPE|):
+     * <li> Lanewise contracting conversion operator ({@code |ETYPE|>|FTYPE|}):
      * The logical contraction {@code ML=|FTYPE|/|ETYPE|<1} means the
      * output is {@code MO=1/ML} times larger than the logical result.
      *
@@ -3981,10 +3981,12 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * @param <F> the boxed element type of the species
      * @return a vector converted by shape and element type from this vector
      * @throws ArrayIndexOutOfBoundsException unless {@code part} is zero,
-     *         or else the expansion ratio is {@code M} and
-     *         {@code part} is positive and less than {@code M},
-     *         or else the contraction ratio is {@code M} and
-     *         {@code part} is negative and greater {@code -M}
+     *         or else the lanewise conversion is an expansion leading to
+     *         an output selection ratio {@code MS} and {@code part} is in
+     *         range {@code [0..MS-1]}
+     *         or else the lanewise conversion is a contraction leading to
+     *         an output insertion ratio {@code MO} and {@code part} is in
+     *         range {@code [-(MO+1)..0]}.
      *
      * @see VectorOperators#I2L
      * @see VectorOperators.Conversion#ofCast(Class,Class)
