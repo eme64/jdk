@@ -3655,7 +3655,7 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * <em>shape-changing</em> operation, and may have special
      * implementation costs. A change in shape leads to
      * <a href="Vector.html#expansion">selection or insertion</a>,
-     * which can be steered by the part number.
+     * which can be steered by the {@code part} number.
      *
      * <p> The method behaves as if this vector is stored into a byte
      * array using little-endian byte ordering and then the desired
@@ -3856,6 +3856,7 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * logical result, in which case a non-zero {@code part} number
      * can further control the selection and steering of the logical
      * result into the physical output vector.
+     * TODO: non-zero part?
      *
      * <p> Each specific conversion is described by a conversion
      * constant in the class {@link VectorOperators}.  Each conversion
@@ -3899,7 +3900,8 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * Converting the bit-pattern of a {@code NaN} may discard bits
      * from the {@code NaN}'s significand.
      *
-     * <p> This classification is important, because, unless otherwise
+     * <p> This classification of in-place, expanding and contracting
+     * conversions is important, because, unless otherwise
      * documented, conversion operations <em>never change vector
      * shape</em>, regardless of how they may change <em>lane sizes</em>.
      *
@@ -3940,6 +3942,7 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * {@code [0..M-1]}, and selects the block of {@code VLENGTH/M} input
      * lanes starting at the <em>origin lane</em> at {@code part*VLENGTH/M}.
      * (The relevant ratios are {@code ML=MS=M} and {@code MP=1}.)
+     * TODO: use of M: elegant or unnecessary confusion?
      *
      * <p> The {@code VLENGTH/M} output lanes represent a partial
      * selection from the whole logical result of the conversion, filling
