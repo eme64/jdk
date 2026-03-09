@@ -3848,15 +3848,20 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * to a new lane type (called {@code FTYPE} here) according to the
      * indicated {@linkplain VectorOperators.Conversion conversion}.
      *
-     * This is a lane-wise shape-invariant operation which copies
-     * {@code ETYPE} values from the input vector to corresponding
-     * {@code FTYPE} values in the result.  Depending on the selected
-     * conversion, this operation may either
-     * <a href="Vector.html#expansion">expand or contract</a> its
-     * logical result, in which case a non-zero {@code part} number
-     * can further control the selection and steering of the logical
-     * result into the physical output vector.
-     * TODO: non-zero part? steering?
+     * This is a lane-wise operation which copies {@code ETYPE} values
+     * from the input vector to corresponding {@code FTYPE} values in
+     * the result.
+     *
+     * <p> As a combined effect of shape-invariance and lane size changes,
+     * the input and output species may have different lane counts, causing
+     * <a href="Vector.html#expansion">expansion or contraction</a>, and
+     * require selection or insertion.
+     * Conceptually, the input is lane-wise converted into a logical
+     * result that contains all converted elements, leading to a
+     * logical expansion ratio {@code ML = |FTYPE|/|ETYPE|}.
+     * The result is then copied to the output, which may either be
+     * an exact fit (in-place), too small (requires selection), or
+     * too large (requires insertion).
      *
      * <p> Each specific conversion is described by a conversion
      * constant in the class {@link VectorOperators}.  Each conversion
@@ -3900,24 +3905,57 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * Converting the bit-pattern of a {@code NaN} may discard bits
      * from the {@code NaN}'s significand.
      *
-     * <p> This classification of in-place, expanding and contracting
-     * conversions is important, because, unless otherwise
-     * documented, conversion operations <em>never change vector
-     * shape</em>, regardless of how they may change <em>lane sizes</em>.
+     * <p> This classification of the lanewise operators as in-place,
+     * expanding and contracting is important, because,  unless otherwise
+     * documented, conversion operations <em>never change vector shape</em>,
+     * regardless of how they may change <em>lane sizes</em>.
+     * <p> To manage the details of these
+     * <a href="Vector.html#expansion">expansions and contractions</a>,
+     * a {@code part} parameter selects partial results from expansions,
+     * or steers insertion of the results of contractions into the output.
+     * For shape-invariant conversions ({@code MP=1}), we have the
+     * following cases:
      *
-     * Therefore, an expanding conversion (if it is also shape-invariant)
-     * cannot store all of its
-     * results in its output vector, because the output vector has fewer
-     * lanes of larger size, in order to have the same overall bit-size as
-     * its input.
-     * A part of the logical result must be <em>selected</em> for
-     * delivery into the output shape, determined by {@code part}
-     * number.
+     * <ul>
+     * <li> Lanewise in-place conversion operator (|ETYPE|=|FTYPE|):
+     * The input, logical result and output have the same number of
+     * lanes and size in bits ({@code ML=MP=1}). The logical result
+     * fits the output exactly, and we always have {@code part=0}.
      *
-     * Likewise, a contracting conversion must <em>insert</em> its relatively small
-     * results into a subset of the lanes of the output vector, defaulting
-     * the unused lanes to contain zero-bit <em>padding</em>.
-     * The insertion position in the output is determined by the {@code part} number.
+     * <p> All conversions are delivered in one output vector, without
+     * wasting lanes.
+     *
+     * <li> Lanewise expanding conversion operator (|ETYPE|<|FTYPE|):
+     * The logical expansion {@code ML=|FTYPE|/|ETYPE|>1} means the
+     * logical result is {@code MS=ML} times larger than the output.
+     *
+     * <p> The {@code part} number in range {@code [0..MS-1]} selects
+     * one of the {@code MS} distinct blocks of {@code VLENGTH/MS}
+     * logical result lanes starting at the <em>origin lane</em> at
+     * {@code part*VLENGTH/MS}. This selected block is copied to the
+     * output and fills it exactly.
+     * The rest of the logical result is lost.
+     *
+     * <p> A group of such such output vectors, with {@code MS} disjoint
+     * selections of logical results, can (manually) represent the
+     * complete logical result of the conversion.
+     *
+     * <li> Lanewise contracting conversion operator (|ETYPE|<|FTYPE|):
+     * The logical contraction {@code ML=|FTYPE|/|ETYPE|<1} means the
+     * output is {@code MO=1/ML} times larger than the logical result.
+     *
+     * <p> The {@code part} number in range {@code [-(MO-1)..0]} inserts
+     * all {@code VLENGTH} lanes from the logical result into the output
+     * located at the <em>origin lane</em> {@code -part*VLENGTH}. There
+     * is a total of {@code VLENGTH*MO} output lanes, and those not
+     * holding converted input values are filled with zero padding.
+     *
+     * <p> A group of such output vectors, with logical result parts
+     * steered to {@code MO} disjoint blocks, can be (manually) reassembled
+     * using the {@linkplain VectorOperators#OR bitwise or} or (for floating
+     * point) the {@link VectorOperators#FIRST_NONZERO FIRST_NONZERO}
+     * operator.
+     * </ul>
      *
      * <p> As an example, a conversion from {@code byte} to {@code long}
      * (logical expansion ratio {@code ML=8})
@@ -3927,48 +3965,6 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * the output vector. The inverse conversion will convert back all
      * the large results, but will waste 87.5% of the lanes in the output
      * vector, padding excess lanes with zero bits.
-     *
-     * <em>In-place</em> conversions ({@code LM=1}) deliver all of
-     * their results in one output vector, without wasting lanes.
-     *
-     * <p> To manage the details of these
-     * <a href="Vector.html#expansion">expansions and contractions</a>,
-     * a non-zero {@code part} parameter selects partial results from
-     * expansions, or steers the results of contractions into
-     * corresponding locations, as follows:
-     *
-     * <ul>
-     * <li> expanding by {@code M}: {@code part} must be in the range
-     * {@code [0..M-1]}, and selects the block of {@code VLENGTH/M} input
-     * lanes starting at the <em>origin lane</em> at {@code part*VLENGTH/M}.
-     * (The relevant ratios are {@code ML=MS=M} and {@code MP=1}.)
-     * TODO: use of M: elegant or unnecessary confusion?
-     *
-     * <p> The {@code VLENGTH/M} output lanes represent a partial
-     * selection from the whole logical result of the conversion, filling
-     * the entire physical output vector.
-     * A group of such such output vectors, with {@code M} disjoint
-     * selections of logical results, can (manually) represent the
-     * complete logical result of the conversion.
-     *
-     * <li> contracting by {@code M}: {@code part} must be in the range
-     * {@code [-M+1..0]}, and inserts all {@code VLENGTH} input lanes into
-     * the output located at the <em>origin lane</em> {@code -part*VLENGTH}.
-     * There is a total of {@code VLENGTH*M} output lanes, and those not
-     * holding converted input values are filled with zero padding.
-     * (The relevant ratios are {@code ML=1/M}, {@code MO=M}, and {@code MP=1}.)
-     *
-     * <p> A group of such output vectors, with logical result parts
-     * steered to {@code M} disjoint blocks, can be (manually) reassembled using the
-     * {@linkplain VectorOperators#OR bitwise or} or (for floating
-     * point) the {@link VectorOperators#FIRST_NONZERO FIRST_NONZERO}
-     * operator.
-     *
-     * <li> in-place ({@code M=1}): {@code part} must be zero.
-     * Both vectors have the same {@code VLENGTH}.  The result is
-     * always positioned at the <em>origin lane</em> of zero.
-     *
-     * </ul>
      *
      * <p> This method is a restricted version of the more general
      * but less frequently used <em>shape-changing</em> method
@@ -4025,7 +4021,9 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * Conceptually, the input is lane-wise converted into a logical
      * result that contains all converted elements, leading to a
      * logical expansion ratio {@code ML = |FTYPE|/|ETYPE|}.
-     * The logical result may not fit the output shape exactly:
+     * The result is then copied to the output, which may either be
+     * an exact fit (in-place), too small (requires selection), or
+     * too large (requires insertion).
      *
      * <ul>
      * <li> Exact fit (in-place): the expansion or contraction of the
