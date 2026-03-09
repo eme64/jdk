@@ -3650,13 +3650,12 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * If the input and output shapes are the same this is an
      * in-place operation, and the output has the same underlying
      * bits as the input, and {@code part=0}.
-     * But if the shape is changed, this leads to
-     * <a href="Vector.html#expansion">selection or insertion</a>,
-     * which can be steered by the part number.
      *
      * <p> If the old and new species have different shape, this is a
      * <em>shape-changing</em> operation, and may have special
-     * implementation costs.
+     * implementation costs. A change in shape leads to
+     * <a href="Vector.html#expansion">selection or insertion</a>,
+     * which can be steered by the part number.
      *
      * <p> The method behaves as if this vector is stored into a byte
      * array using little-endian byte ordering and then the desired
