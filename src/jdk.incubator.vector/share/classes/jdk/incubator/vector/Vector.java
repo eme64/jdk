@@ -980,7 +980,7 @@ import java.util.Arrays;
  * <p> It is also possible to combine logical expansion with
  * shape expansion, or logical contraction with shape contraction,
  * with opposing effects on truncation or padding.  If the
- * opposing effects are balanced ({@code MO=MS=1} and {#code MP=ML}),
+ * opposing effects are balanced ({@code MO=MS=1} and {@code MP=ML}),
  * then we speak of an <em>in-place operation</em>, and padding and
  * selection can be avoided completely.  For example, on a platform which
  * supports both 64-bit and 128-bit shapes, a 64-bit vector
@@ -3958,6 +3958,15 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * from the input vector to corresponding {@code FTYPE} values in
      * the result.
      *
+     * <p> This method is a restricted version of the more general
+     * but less frequently used <em>shape-changing</em> method
+     * {@link #convertShape(VectorOperators.Conversion,VectorSpecies,int)
+     * convertShape()}.
+     * The result of this method is the same as the expression
+     * {@code this.convertShape(conv, rsp, part)},
+     * where the output species is
+     * {@code rsp=this.species().withLanes(FTYPE.class)}.
+     *
      * <p> As a combined effect of shape-invariance and lane size changes,
      * the input and output species may have different lane counts, causing
      * <a href="Vector.html#expansion">expansion or contraction</a>, and
@@ -3968,6 +3977,8 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * The result is then copied to the output, which may either be
      * an exact fit (in-place), too small (requires selection), or
      * too large (requires insertion).
+     *
+     * <h4>Logical: Lane-wise Conversion</h4>
      *
      * <p> Each specific conversion is described by a conversion
      * constant in the class {@link VectorOperators}.  Each conversion
@@ -4010,6 +4021,8 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * bitwise value is somehow not legal in the output type.
      * Converting the bit-pattern of a {@code NaN} may discard bits
      * from the {@code NaN}'s significand.
+     *
+     * <h4>Shape-invariance can lead to Selection or Insertion</h4>
      *
      * <p> This classification of the lanewise operators as in-place,
      * expanding and contracting is important, because,  unless otherwise
@@ -4071,15 +4084,6 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * the output vector. The inverse conversion will convert back all
      * the large results, but will waste 87.5% of the lanes in the output
      * vector, padding excess lanes with zero bits.
-     *
-     * <p> This method is a restricted version of the more general
-     * but less frequently used <em>shape-changing</em> method
-     * {@link #convertShape(VectorOperators.Conversion,VectorSpecies,int)
-     * convertShape()}.
-     * The result of this method is the same as the expression
-     * {@code this.convertShape(conv, rsp, part)},
-     * where the output species is
-     * {@code rsp=this.species().withLanes(FTYPE.class)}.
      *
      * @param conv the desired scalar conversion to apply lane-wise
      * @param part the <a href="Vector.html#expansion">part number</a>
