@@ -393,14 +393,14 @@ abstract class AbstractVector<E> extends Vector<E> {
         AbstractSpecies<F> rsp = (AbstractSpecies<F>) toSpecies;
         AbstractSpecies<E> vsp = vspecies();
         if (part == 0) {
-            // Works the same for in-place, expand, or contract.
+            // Works the same for in-place, selection (truncation) and insertion (padding)
             return convert0('X', rsp);
         } else {
             int origin = shapeChangeOrigin(vsp, rsp, false, part);
             //System.out.println("*** origin = "+origin+", part = "+part+", reinterpret");
-            if (part > 0) {  // Expansion: slice first then cast.
+            if (part > 0) {  // Selection (truncation): slice first then cast.
                 return slice(origin).convert0('X', rsp);
-            } else {  // Contraction: cast first then unslice.
+            } else {  // Insertion (padding): cast first then unslice.
                 return rsp.zero().slice(rsp.laneCount() - origin,
                                         convert0('X', rsp));
             }
@@ -426,7 +426,7 @@ abstract class AbstractVector<E> extends Vector<E> {
         AbstractSpecies<E> vsp = vspecies();
         char kind = c.kind();
         switch (kind) {
-        case 'C': // Regular cast conversion, known to the JIT.
+        case 'C': // Regular cast conversion.
             break;
         case 'I':  // Identity conversion => reinterpret.
             assert(c.sizeChangeLog2() == 0);
@@ -449,14 +449,14 @@ abstract class AbstractVector<E> extends Vector<E> {
         vsp.check(c.domain());  // apply dynamic check to conv
         rsp.check(c.range());   // apply dynamic check to conv
         if (part == 0) {
-            // Works the same for in-place, expand, or contract.
+            // Works the same for in-place, selection (truncation) and insertion (padding)
             return convert0(kind, rsp);
         } else {
             int origin = shapeChangeOrigin(vsp, rsp, true, part);
             //System.out.println("*** origin = "+origin+", part = "+part+", lanewise");
-            if (part > 0) {  // Expansion: slice first then cast.
+            if (part > 0) {  // Selection (truncation): slice first then cast.
                 return slice(origin).convert0(kind, rsp);
-            } else {  // Contraction: cast first then unslice.
+            } else {  // Insertion (padding): cast first then unslice.
                 return rsp.zero().slice(rsp.laneCount() - origin,
                                         convert0(kind, rsp));
             }
@@ -543,21 +543,21 @@ abstract class AbstractVector<E> extends Vector<E> {
 
     private static boolean partInRangeSlow(int resSizeLog2, int phySizeLog2, int part) {
         int limit = partLimit(resSizeLog2, phySizeLog2);
-        if (limit > 0) {  // expansion, requires truncation in output shape
+        if (limit > 0) {  // selection (output is truncation of logical result)
             return part >= 0 && part < limit;
-        } else if (limit < 0) {  // contraction, requires padding in output shape
+        } else if (limit < 0) {  // contraction (output is logical result with padding)
             return part > -limit && part <= 0;
-        } else {
+        } else { // in-place
             return (part == 0);
         }
     }
 
     private static int partLimit(int resSizeLog2, int phySizeLog2) {
-        if (resSizeLog2 > phySizeLog2) {  // expansion
+        if (resSizeLog2 > phySizeLog2) {  // selection (truncation)
             return 1 << (resSizeLog2 - phySizeLog2);
-        } else if (resSizeLog2 < phySizeLog2) {  // contraction
+        } else if (resSizeLog2 < phySizeLog2) {  // insertion (padding)
             return -1 << (phySizeLog2 - resSizeLog2);
-        } else {
+        } else { // in-place
             return 0;
         }
     }
