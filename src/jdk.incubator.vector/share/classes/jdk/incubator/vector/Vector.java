@@ -1155,17 +1155,17 @@ import java.util.Arrays;
  * </thead>
  * <tbody>
  * <tr>
- * <td><code>long[2]:128</code></td>
+ * <td><code>byte[16]:128</code></td>
  * <td><em>identity</em></td>
- * <td><code>long[2]:128</code></td>
+ * <td><code>byte[16]:128</code></td>
  * <td>1</td>
  * <td>1</td>
  * <td>1</td>
  * <td>1</td>
  * <td></td>
  * <td>0&#xA0;</td>
- * <td><code>long[2]:128</code></td>
- * <td style="text-align: left;"><code>A=======</code>&#xA0;<code>B=======</code></td>
+ * <td><code>byte[16]:128</code></td>
+ * <td style="text-align: left;"><code>ABCDEFGH</code>&#xA0;<code>IJKLMNOP</code></td>
  * </tr>
  * <tr>
  * <td><code>short[8]:128</code></td>
@@ -1181,6 +1181,32 @@ import java.util.Arrays;
  * <td style="text-align: left;"><code>A=B=C=D=</code>&#xA0;<code>E=F=G=H=</code></td>
  * </tr>
  * <tr>
+ * <td><code>int[4]:128</code></td>
+ * <td><em>identity</em></td>
+ * <td><code>int[4]:128</code></td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td></td>
+ * <td>0&#xA0;</td>
+ * <td><code>int[4]:128</code></td>
+ * <td style="text-align: left;"><code>A===B===</code>&#xA0;<code>C===D===</code></td>
+ * </tr>
+ * <tr>
+ * <td><code>long[2]:128</code></td>
+ * <td><em>identity</em></td>
+ * <td><code>long[2]:128</code></td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td></td>
+ * <td>0&#xA0;</td>
+ * <td><code>long[2]:128</code></td>
+ * <td style="text-align: left;"><code>A=======</code>&#xA0;<code>B=======</code></td>
+ * </tr>
+ * <tr style="border-top:1px solid #000;">
  * <td><code>byte[8]: 64</code></td>
  * <td><em>identity</em></td>
  * <td><code>byte[8]: 64</code></td>
@@ -1205,6 +1231,32 @@ import java.util.Arrays;
  * <td>0&#xA0;</td>
  * <td><code>short[4]: 64</code></td>
  * <td style="text-align: left;"><code>A=B=C=D=</code></td>
+ * </tr>
+ * <tr>
+ * <td><code>int[2]: 64</code></td>
+ * <td><em>identity</em></td>
+ * <td><code>int[2]: 64</code></td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td></td>
+ * <td>0&#xA0;</td>
+ * <td><code>int[2]: 64</code></td>
+ * <td style="text-align: left;"><code>A===B===</code></td>
+ * </tr>
+ * <tr>
+ * <td><code>long[1]: 64</code></td>
+ * <td><em>identity</em></td>
+ * <td><code>long[1]: 64</code></td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td></td>
+ * <td>0&#xA0;</td>
+ * <td><code>long[1]: 64</code></td>
+ * <td style="text-align: left;"><code>A=======</code></td>
  * </tr>
  * <tr style="border-top:1px solid #000;">
  * <td><code>long[2]:128</code></td>
@@ -1309,6 +1361,58 @@ import java.util.Arrays;
  * <td>3&#xA0;</td>
  * <td><code>long[2]:128</code></td>
  * <td style="text-align: left;"><code>G=______</code>&#xA0;<code>H=______</code></td>
+ * </tr>
+ * <tr style="border-top:1px solid #000;">
+ * <td><code>short[8]:128</code></td>
+ * <td><code>convert(S2L)</code></td>
+ * <td><code>long[8]:512</code></td>
+ * <td>4</td>
+ * <td>1</td>
+ * <td>1/4</td>
+ * <td>4</td>
+ * <td>S</td>
+ * <td>0&#xA0;</td>
+ * <td><code>long[2]:128</code></td>
+ * <td style="text-align: left;"><code>A=------</code>&#xA0;<code>B=------</code></td>
+ * </tr>
+ * <tr>
+ * <td><code>short[8]:128</code></td>
+ * <td><code>convert(S2L)</code></td>
+ * <td><code>long[8]:512</code></td>
+ * <td>4</td>
+ * <td>1</td>
+ * <td>1/4</td>
+ * <td>4</td>
+ * <td>S</td>
+ * <td>1&#xA0;</td>
+ * <td><code>long[2]:128</code></td>
+ * <td style="text-align: left;"><code>C=------</code>&#xA0;<code>D=------</code></td>
+ * </tr>
+ * <tr>
+ * <td><code>short[8]:128</code></td>
+ * <td><code>convert(S2L)</code></td>
+ * <td><code>long[8]:512</code></td>
+ * <td>4</td>
+ * <td>1</td>
+ * <td>1/4</td>
+ * <td>4</td>
+ * <td>S</td>
+ * <td>2&#xA0;</td>
+ * <td><code>long[2]:128</code></td>
+ * <td style="text-align: left;"><code>E=------</code>&#xA0;<code>F=------</code></td>
+ * </tr>
+ * <tr>
+ * <td><code>short[8]:128</code></td>
+ * <td><code>convert(S2L)</code></td>
+ * <td><code>long[8]:512</code></td>
+ * <td>4</td>
+ * <td>1</td>
+ * <td>1/4</td>
+ * <td>4</td>
+ * <td>S</td>
+ * <td>3&#xA0;</td>
+ * <td><code>long[2]:128</code></td>
+ * <td style="text-align: left;"><code>G=------</code>&#xA0;<code>H=------</code></td>
  * </tr>
  * <tr style="border-top:1px solid #000;">
  * <td><code>byte[16]:128</code></td>
