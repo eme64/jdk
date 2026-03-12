@@ -1132,25 +1132,25 @@ import java.util.Arrays;
  * for part numbers, while for insertions the {@code partLimit()}
  * value {@code -MO} is the exclusive <em>lower</em> limit.
  *
- * <p>Here are some examples of expansions and contractions:
- *
+ * <p>
+ * Below is a table with some examples of expansions and contractions.
  * TODO: consider reshaping?
  *
  * <table id="expansion-examples" class="striped" style="text-align:right;">
- * <caption>expansion and contraction examples</caption>
+ * <caption>Expansion and Contraction Examples</caption>
  * <thead>
  * <tr>
- * <th>input</th>
- * <th>op</th>
- * <th>logical<br>result</th>
+ * <th>input<br>species</th>
+ * <th>operation</th>
+ * <th>logical<br>species</th>
  * <th><code>ML</code></th>
  * <th><code>MP</code></th>
  * <th><code>MO</code></th>
  * <th><code>MS</code></th>
  * <th>S/I</th>
  * <th>part</th>
- * <th style="text-align: left;">physical<br>output</th>
- * <th style="text-align: left;">resulting<br>bytes</th>
+ * <th>physical<br>species</th>
+ * <th>resulting<br>bytes</th>
  * </tr>
  * </thead>
  * <tbody>
@@ -1164,60 +1164,8 @@ import java.util.Arrays;
  * <td>1</td>
  * <td></td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>long[2]:128</code></td>
+ * <td><code>long[2]:128</code></td>
  * <td style="text-align: left;"><code>A=======</code>&#xA0;<code>B=======</code></td>
- * </tr>
- * <tr>
- * <td><code>long[2]:128</code></td>
- * <td><code>convert(L2S)</code></td>
- * <td><code>short[2]:32</code></td>
- * <td>1/4</td>
- * <td>1</td>
- * <td>4</td>
- * <td>1/4</td>
- * <td>I</td>
- * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>short[8]:128</code></td>
- * <td style="text-align: left;"><code>A=B=____</code>&#xA0;<code>________</code></td>
- * </tr>
- * <tr>
- * <td><code>long[2]:128</code></td>
- * <td><code>convert(L2S)</code></td>
- * <td><code>short[2]:32</code></td>
- * <td>1/4</td>
- * <td>1</td>
- * <td>4</td>
- * <td>1/4</td>
- * <td>I</td>
- * <td>-1&#xA0;</td>
- * <td style="text-align: left;"><code>short[8]:128</code></td>
- * <td style="text-align: left;"><code>____A=B=</code>&#xA0;<code>________</code></td>
- * </tr>
- * <tr>
- * <td><code>long[2]:128</code></td>
- * <td><code>convert(L2S)</code></td>
- * <td><code>short[2]:32</code></td>
- * <td>1/4</td>
- * <td>1</td>
- * <td>4</td>
- * <td>1/4</td>
- * <td>I</td>
- * <td>-2&#xA0;</td>
- * <td style="text-align: left;"><code>short[8]:128</code></td>
- * <td style="text-align: left;"><code>________</code>&#xA0;<code>A=B=____</code></td>
- * </tr>
- * <tr>
- * <td><code>long[2]:128</code></td>
- * <td><code>convert(L2S)</code></td>
- * <td><code>short[2]:32</code></td>
- * <td>1/4</td>
- * <td>1</td>
- * <td>4</td>
- * <td>1/4</td>
- * <td>I</td>
- * <td>-3&#xA0;</td>
- * <td style="text-align: left;"><code>short[8]:128</code></td>
- * <td style="text-align: left;"><code>________</code>&#xA0;<code>____A=B=</code></td>
  * </tr>
  * <tr>
  * <td><code>short[8]:128</code></td>
@@ -1229,10 +1177,88 @@ import java.util.Arrays;
  * <td>1</td>
  * <td></td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>short[8]:128</code></td>
+ * <td><code>short[8]:128</code></td>
  * <td style="text-align: left;"><code>A=B=C=D=</code>&#xA0;<code>E=F=G=H=</code></td>
  * </tr>
  * <tr>
+ * <td><code>byte[8]: 64</code></td>
+ * <td><em>identity</em></td>
+ * <td><code>byte[8]: 64</code></td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td></td>
+ * <td>0&#xA0;</td>
+ * <td><code>byte[8]: 64</code></td>
+ * <td style="text-align: left;"><code>ABCDEFGH</code></td>
+ * </tr>
+ * <tr>
+ * <td><code>short[4]: 64</code></td>
+ * <td><em>identity</em></td>
+ * <td><code>short[4]: 64</code></td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td>1</td>
+ * <td></td>
+ * <td>0&#xA0;</td>
+ * <td><code>short[4]: 64</code></td>
+ * <td style="text-align: left;"><code>A=B=C=D=</code></td>
+ * </tr>
+ * <tr style="border-top:1px solid #000;">
+ * <td><code>long[2]:128</code></td>
+ * <td><code>convert(L2S)</code></td>
+ * <td><code>short[2]: 32</code></td>
+ * <td>1/4</td>
+ * <td>1</td>
+ * <td>4</td>
+ * <td>1/4</td>
+ * <td>I</td>
+ * <td>0&#xA0;</td>
+ * <td><code>short[8]:128</code></td>
+ * <td style="text-align: left;"><code>A=B=____</code>&#xA0;<code>________</code></td>
+ * </tr>
+ * <tr>
+ * <td><code>long[2]:128</code></td>
+ * <td><code>convert(L2S)</code></td>
+ * <td><code>short[2]: 32</code></td>
+ * <td>1/4</td>
+ * <td>1</td>
+ * <td>4</td>
+ * <td>1/4</td>
+ * <td>I</td>
+ * <td>-1&#xA0;</td>
+ * <td><code>short[8]:128</code></td>
+ * <td style="text-align: left;"><code>____A=B=</code>&#xA0;<code>________</code></td>
+ * </tr>
+ * <tr>
+ * <td><code>long[2]:128</code></td>
+ * <td><code>convert(L2S)</code></td>
+ * <td><code>short[2]: 32</code></td>
+ * <td>1/4</td>
+ * <td>1</td>
+ * <td>4</td>
+ * <td>1/4</td>
+ * <td>I</td>
+ * <td>-2&#xA0;</td>
+ * <td><code>short[8]:128</code></td>
+ * <td style="text-align: left;"><code>________</code>&#xA0;<code>A=B=____</code></td>
+ * </tr>
+ * <tr>
+ * <td><code>long[2]:128</code></td>
+ * <td><code>convert(L2S)</code></td>
+ * <td><code>short[2]: 32</code></td>
+ * <td>1/4</td>
+ * <td>1</td>
+ * <td>4</td>
+ * <td>1/4</td>
+ * <td>I</td>
+ * <td>-3&#xA0;</td>
+ * <td><code>short[8]:128</code></td>
+ * <td style="text-align: left;"><code>________</code>&#xA0;<code>____A=B=</code></td>
+ * </tr>
+ * <tr style="border-top:1px solid #000;">
  * <td><code>short[8]:128</code></td>
  * <td><code>convert(Z_E_S2L)</code></td>
  * <td><code>long[8]:512</code></td>
@@ -1242,7 +1268,7 @@ import java.util.Arrays;
  * <td>4</td>
  * <td>S</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>long[2]:128</code></td>
+ * <td><code>long[2]:128</code></td>
  * <td style="text-align: left;"><code>A=______</code>&#xA0;<code>B=______</code></td>
  * </tr>
  * <tr>
@@ -1255,7 +1281,7 @@ import java.util.Arrays;
  * <td>4</td>
  * <td>S</td>
  * <td>1&#xA0;</td>
- * <td style="text-align: left;"><code>long[2]:128</code></td>
+ * <td><code>long[2]:128</code></td>
  * <td style="text-align: left;"><code>C=______</code>&#xA0;<code>D=______</code></td>
  * </tr>
  * <tr>
@@ -1268,7 +1294,7 @@ import java.util.Arrays;
  * <td>4</td>
  * <td>S</td>
  * <td>2&#xA0;</td>
- * <td style="text-align: left;"><code>long[2]:128</code></td>
+ * <td><code>long[2]:128</code></td>
  * <td style="text-align: left;"><code>E=______</code>&#xA0;<code>F=______</code></td>
  * </tr>
  * <tr>
@@ -1281,89 +1307,63 @@ import java.util.Arrays;
  * <td>4</td>
  * <td>S</td>
  * <td>3&#xA0;</td>
- * <td style="text-align: left;"><code>long[2]:128</code></td>
+ * <td><code>long[2]:128</code></td>
  * <td style="text-align: left;"><code>G=______</code>&#xA0;<code>H=______</code></td>
  * </tr>
- * <tr>
+ * <tr style="border-top:1px solid #000;">
  * <td><code>byte[16]:128</code></td>
  * <td><code>reinterpretShape()</code></td>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td>1</td>
  * <td>1/2</td>
  * <td>1/2</td>
  * <td>2</td>
  * <td>S</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td style="text-align: left;"><code>ABCDEFGH</code></td>
  * </tr>
  * <tr>
  * <td><code>byte[16]:128</code></td>
  * <td><code>reinterpretShape()</code></td>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td>1</td>
  * <td>1/2</td>
  * <td>1/2</td>
  * <td>2</td>
  * <td>S</td>
  * <td>1&#xA0;</td>
- * <td style="text-align: left;"><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td style="text-align: left;"><code>IJKLMNOP</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
- * <td><em>identity</em></td>
- * <td><code>byte[8]:64</code></td>
- * <td>1</td>
- * <td>1</td>
- * <td>1</td>
- * <td>1</td>
- * <td></td>
- * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>byte[8]:64</code></td>
- * <td style="text-align: left;"><code>ABCDEFGH</code></td>
- * </tr>
- * <tr>
- * <td><code>short[4]:64</code></td>
- * <td><em>identity</em></td>
- * <td><code>short[4]</code></td>
- * <td>1</td>
- * <td>1</td>
- * <td>1</td>
- * <td>1</td>
- * <td></td>
- * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>short[4]:64</code></td>
- * <td style="text-align: left;"><code>A=B=C=D=</code></td>
- * </tr>
- * <tr>
- * <td><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td><code>convert(S2B)</code></td>
- * <td><code>byte[4]:32</code></td>
+ * <td><code>byte[4]: 32</code></td>
  * <td>1/2</td>
  * <td>1</td>
  * <td>2</td>
  * <td>1/2</td>
  * <td>I</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td style="text-align: left;"><code>ABCD____</code></td>
  * </tr>
  * <tr>
- * <td><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td><code>convert(S2B)</code></td>
- * <td><code>byte[4]:32</code></td>
+ * <td><code>byte[4]: 32</code></td>
  * <td>1/2</td>
  * <td>1</td>
  * <td>2</td>
  * <td>1/2</td>
  * <td>I</td>
  * <td>-1&#xA0;</td>
- * <td style="text-align: left;"><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td style="text-align: left;"><code>____ABCD</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>convert(B2S)</code></td>
  * <td><code>short[8]:128</code></td>
  * <td>2</td>
@@ -1372,11 +1372,11 @@ import java.util.Arrays;
  * <td>2</td>
  * <td>S</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td style="text-align: left;"><code>A=B=C=D=</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>convert(B2S)</code></td>
  * <td><code>short[8]:128</code></td>
  * <td>2</td>
@@ -1385,11 +1385,11 @@ import java.util.Arrays;
  * <td>2</td>
  * <td>S</td>
  * <td>1&#xA0;</td>
- * <td style="text-align: left;"><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td style="text-align: left;"><code>E=F=G=H=</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>convert(Z_E_B2S)</code></td>
  * <td><code>short[8]:128</code></td>
  * <td>2</td>
@@ -1398,11 +1398,11 @@ import java.util.Arrays;
  * <td>2</td>
  * <td>S</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td style="text-align: left;"><code>A_B_C_D_</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>convert(Z_E_B2S)</code></td>
  * <td><code>short[8]:128</code></td>
  * <td>2</td>
@@ -1411,11 +1411,11 @@ import java.util.Arrays;
  * <td>2</td>
  * <td>S</td>
  * <td>1&#xA0;</td>
- * <td style="text-align: left;"><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td style="text-align: left;"><code>E_F_G_H_</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>convert(Z_E_B2I)</code></td>
  * <td><code>int[8]:256</code></td>
  * <td>4</td>
@@ -1424,11 +1424,11 @@ import java.util.Arrays;
  * <td>4</td>
  * <td>S</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>int[2]:64</code></td>
+ * <td><code>int[2]: 64</code></td>
  * <td style="text-align: left;"><code>A___B___</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>convert(Z_E_B2I)</code></td>
  * <td><code>int[8]:256</code></td>
  * <td>4</td>
@@ -1437,11 +1437,11 @@ import java.util.Arrays;
  * <td>4</td>
  * <td>S</td>
  * <td>3&#xA0;</td>
- * <td style="text-align: left;"><code>int[2]:64</code></td>
+ * <td><code>int[2]: 64</code></td>
  * <td style="text-align: left;"><code>G___H___</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>convert(Z_E_B2L)</code></td>
  * <td><code>long[8]:512</code></td>
  * <td>8</td>
@@ -1450,11 +1450,11 @@ import java.util.Arrays;
  * <td>8</td>
  * <td>S</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>long[1]:64</code></td>
+ * <td><code>long[1]: 64</code></td>
  * <td style="text-align: left;"><code>A_______</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>convert(Z_E_B2L)</code></td>
  * <td><code>long[8]:512</code></td>
  * <td>8</td>
@@ -1463,206 +1463,206 @@ import java.util.Arrays;
  * <td>8</td>
  * <td>S</td>
  * <td>7&#xA0;</td>
- * <td style="text-align: left;"><code>long[1]:64</code></td>
+ * <td><code>long[1]: 64</code></td>
  * <td style="text-align: left;"><code>H_______</code></td>
  * </tr>
  * <tr>
- * <td><code>long[1]:64</code></td>
+ * <td><code>long[1]: 64</code></td>
  * <td><code>convert(L2I)</code></td>
- * <td><code>int[1]:32</code></td>
+ * <td><code>int[1]: 32</code></td>
  * <td>1/2</td>
  * <td>1</td>
  * <td>2</td>
  * <td>1/2</td>
  * <td>I</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>int[2]:64</code></td>
+ * <td><code>int[2]: 64</code></td>
  * <td style="text-align: left;"><code>A===____</code></td>
  * </tr>
  * <tr>
- * <td><code>long[1]:64</code></td>
+ * <td><code>long[1]: 64</code></td>
  * <td><code>convert(L2I)</code></td>
- * <td><code>int[1]:32</code></td>
+ * <td><code>int[1]: 32</code></td>
  * <td>1/2</td>
  * <td>1</td>
  * <td>2</td>
  * <td>1/2</td>
  * <td>I</td>
  * <td>-1&#xA0;</td>
- * <td style="text-align: left;"><code>int[2]:64</code></td>
+ * <td><code>int[2]: 64</code></td>
  * <td style="text-align: left;"><code>____A===</code></td>
  * </tr>
  * <tr>
- * <td><code>int[2]:64</code></td>
+ * <td><code>int[2]: 64</code></td>
  * <td><code>convert(I2S)</code></td>
- * <td><code>short[2]:32</code></td>
+ * <td><code>short[2]: 32</code></td>
  * <td>1/2</td>
  * <td>1</td>
  * <td>2</td>
  * <td>1/2</td>
  * <td>I</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td style="text-align: left;"><code>A=B=____</code></td>
  * </tr>
  * <tr>
- * <td><code>int[2]:64</code></td>
+ * <td><code>int[2]: 64</code></td>
  * <td><code>convert(I2S)</code></td>
- * <td><code>short[2]:32</code></td>
+ * <td><code>short[2]: 32</code></td>
  * <td>1/2</td>
  * <td>1</td>
  * <td>2</td>
  * <td>1/2</td>
  * <td>I</td>
  * <td>-1&#xA0;</td>
- * <td style="text-align: left;"><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td style="text-align: left;"><code>____A=B=</code></td>
  * </tr>
  * <tr>
- * <td><code>long[1]:64</code></td>
+ * <td><code>long[1]: 64</code></td>
  * <td><code>convert(L2S)</code></td>
- * <td><code>short[1]:16</code></td>
+ * <td><code>short[1]: 16</code></td>
  * <td>1/4</td>
  * <td>1</td>
  * <td>4</td>
  * <td>1/4</td>
  * <td>I</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td style="text-align: left;"><code>A=______</code></td>
  * </tr>
  * <tr>
- * <td><code>long[1]:64</code></td>
+ * <td><code>long[1]: 64</code></td>
  * <td><code>convert(L2S)</code></td>
- * <td><code>short[1]:16</code></td>
+ * <td><code>short[1]: 16</code></td>
  * <td>1/4</td>
  * <td>1</td>
  * <td>4</td>
  * <td>1/4</td>
  * <td>I</td>
  * <td>-3&#xA0;</td>
- * <td style="text-align: left;"><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td style="text-align: left;"><code>______A=</code></td>
  * </tr>
  * <tr>
- * <td><code>long[1]:64</code></td>
+ * <td><code>long[1]: 64</code></td>
  * <td><code>convert(L2B)</code></td>
- * <td><code>byte[1]:8</code></td>
+ * <td><code>byte[1]:&nbsp;&nbsp;8</code></td>
  * <td>1/8</td>
  * <td>1</td>
  * <td>8</td>
  * <td>1/8</td>
  * <td>I</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td style="text-align: left;"><code>A_______</code></td>
  * </tr>
  * <tr>
- * <td><code>long[1]:64</code></td>
+ * <td><code>long[1]: 64</code></td>
  * <td><code>convert(L2B)</code></td>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td>1/8</td>
  * <td>1</td>
  * <td>8</td>
  * <td>1/8</td>
  * <td>I</td>
  * <td>-1&#xA0;</td>
- * <td style="text-align: left;"><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td style="text-align: left;"><code>_A______</code></td>
  * </tr>
  * <tr>
- * <td><code>long[1]:64</code></td>
+ * <td><code>long[1]: 64</code></td>
  * <td><code>convert(L2B)</code></td>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td>1/8</td>
  * <td>1</td>
  * <td>8</td>
  * <td>1/8</td>
  * <td>I</td>
  * <td>-6&#xA0;</td>
- * <td style="text-align: left;"><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td style="text-align: left;"><code>______A_</code></td>
  * </tr>
  * <tr>
- * <td><code>long[1]:64</code></td>
+ * <td><code>long[1]: 64</code></td>
  * <td><code>convert(L2B)</code></td>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td>1/8</td>
  * <td>1</td>
  * <td>8</td>
  * <td>1/8</td>
  * <td>I</td>
  * <td>-7&#xA0;</td>
- * <td style="text-align: left;"><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td style="text-align: left;"><code>_______A</code></td>
  * </tr>
  * <tr>
- * <td><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td><code>convert(S2B)</code></td>
- * <td><code>byte[4]:32</code></td>
+ * <td><code>byte[4]: 32</code></td>
  * <td>1/2</td>
  * <td>1</td>
  * <td>2</td>
  * <td>1/2</td>
  * <td>I</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td style="text-align: left;"><code>ABCD____</code></td>
  * </tr>
  * <tr>
- * <td><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td><code>convert(S2B)</code></td>
- * <td><code>byte[4]:32</code></td>
+ * <td><code>byte[4]: 32</code></td>
  * <td>1/2</td>
  * <td>1</td>
  * <td>2</td>
  * <td>1/2</td>
  * <td>I</td>
  * <td>-1&#xA0;</td>
- * <td style="text-align: left;"><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td style="text-align: left;"><code>____ABCD</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>reinterpretShape()</code></td>
- * <td><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td>1</td>
  * <td>1</td>
  * <td>1</td>
  * <td>1</td>
  * <td></td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>short[4]:64</code></td>
+ * <td><code>short[4]: 64</code></td>
  * <td style="text-align: left;"><code>(AB)(CD)(EF)(GH)</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>reinterpretShape()</code></td>
- * <td><code>int[2]:64</code></td>
+ * <td><code>int[2]: 64</code></td>
  * <td>1</td>
  * <td>1</td>
  * <td>1</td>
  * <td>1</td>
  * <td></td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>int[2]:64</code></td>
+ * <td><code>int[2]: 64</code></td>
  * <td style="text-align: left;"><code>(ABCD)(EFGH)</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>reinterpretShape()</code></td>
- * <td><code>long[1]:64</code></td>
+ * <td><code>long[1]: 64</code></td>
  * <td>1</td>
  * <td>1</td>
  * <td>1</td>
  * <td>1</td>
  * <td></td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>long[1]:64</code></td>
+ * <td><code>long[1]: 64</code></td>
  * <td style="text-align: left;"><code>(ABCDEFGH)</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>reinterpretShape()</code></td>
  * <td><code>byte[16]:128</code></td>
  * <td>1</td>
@@ -1671,11 +1671,11 @@ import java.util.Arrays;
  * <td>1/2</td>
  * <td>I</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>byte[16]:128</code></td>
+ * <td><code>byte[16]:128</code></td>
  * <td style="text-align: left;"><code>ABCDEFGH</code>&#xA0;<code>________</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>reinterpretShape()</code></td>
  * <td><code>byte[16]:128</code></td>
  * <td>1</td>
@@ -1684,46 +1684,46 @@ import java.util.Arrays;
  * <td>1/2</td>
  * <td>I</td>
  * <td>-1&#xA0;</td>
- * <td style="text-align: left;"><code>byte[16]:128</code></td>
+ * <td><code>byte[16]:128</code></td>
  * <td style="text-align: left;"><code>________</code>&#xA0;<code>ABCDEFGH</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>unslice(5,V0)</code></td>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td>1</td>
  * <td>1/2</td>
  * <td>1/2</td>
  * <td>2</td>
  * <td>S</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>byte[16]:64</code></td>
+ * <td><code>byte[16]: 64</code></td>
  * <td style="text-align: left;"><code>_____ABC</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>unslice(5,V0)</code></td>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td>1</td>
  * <td>1/2</td>
  * <td>1/2</td>
  * <td>2</td>
  * <td>S</td>
  * <td>1&#xA0;</td>
- * <td style="text-align: left;"><code>byte[16]:64</code></td>
+ * <td><code>byte[16]: 64</code></td>
  * <td style="text-align: left;"><code>DEFGH___</code></td>
  * </tr>
  * <tr>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td><code>x.unslice(5,x)</code></td>
- * <td><code>byte[8]:64</code></td>
+ * <td><code>byte[8]: 64</code></td>
  * <td>1</td>
  * <td>1/2</td>
  * <td>1/2</td>
  * <td>2</td>
  * <td>S</td>
  * <td>0&#xA0;</td>
- * <td style="text-align: left;"><code>byte[16]:64</code></td>
+ * <td><code>byte[16]: 64</code></td>
  * <td style="text-align: left;"><code>DEFGHABC</code></td>
  * </tr>
  * </tbody>
