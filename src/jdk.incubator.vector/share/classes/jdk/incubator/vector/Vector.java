@@ -1023,6 +1023,12 @@ import java.util.Arrays;
  * expansion are numbered in the range {@code [R..R+L-1]}, where
  * {@code L} is the {@code VLENGTH} of the physical output vector, and
  * the origin of the block, {@code R}, is {@code part*L}.
+ **
+ * <p> Specifically, the lanes selected from the logical result of an
+ * expansion are numbered in the range {@code [R..R+L-1]}, where
+ * {@code L} is the {@code VLENGTH} of the physical output vector
+ * divided by {@code ML}. The origin of the block, {@code R}, is
+ * {@code part*L}.
  *
  * <p> A similar convention applies to any vector method that might
  * require insertion, i.e. padding ({@code MO>1}, {@code ML<MP}).
@@ -1035,8 +1041,8 @@ import java.util.Arrays;
  * <p> Specifically, the data is steered into the lanes numbered in the
  * range {@code [R..R+L-1]}, where {@code L} is the {@code VLENGTH} of
  * the logical result vector, and the inserted position of the block,
- * {@code R}, is {@code R=|part|*L}, where {@code part} must be in
- * range {@code [-(MO-1)..0]}.
+ * {@code R}, is {@code R=|part|*L}. {@code part} must be in range
+ * {@code [-(MO-1)..0]}.
  *
  * <p> This convention of positive part numbers for selection
  * ({@code [0..MS-1]}) and non-positive part numbers for insertion

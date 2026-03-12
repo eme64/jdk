@@ -466,15 +466,15 @@ abstract class AbstractVector<E> extends Vector<E> {
     /**
      * Check a part number and return it multiplied by the appropriate
      * block factor to yield the origin of the operand block, as a
-     * lane number.  For expansions the origin is reckoned in the
-     * domain vector, since the domain vector has too much information
-     * and must be sliced.  For contractions the origin is reckoned in
-     * the range vector, since the range vector has too many lanes and
-     * the result must be unsliced at the same position as the inverse
-     * expansion.  If the conversion is lanewise, then lane sizes may
-     * be changing as well.  This affects the logical size of the
-     * result, and so the domain size is multiplied or divided by the
-     * lane size change.
+     * lane number.  For selection (truncation) the origin is reckoned
+     * in the domain vector, since the domain vector has too much
+     * information and must be sliced.  For insertion (padding) the
+     * origin is reckoned in the range vector, since the range vector
+     * has too many lanes and the result must be unsliced at the same
+     * position as the inverse selection.  If the conversion is lanewise,
+     * then lane sizes may be changing as well.  This affects the logical
+     * size of the result, and so the domain size is multiplied or
+     * divided by the lane size change.
      */
     /*package-private*/
     @ForceInline
@@ -485,30 +485,45 @@ abstract class AbstractVector<E> extends Vector<E> {
                           int part) {
         int domSizeLog2 = dsp.vectorShape.vectorBitSizeLog2;
         int phySizeLog2 = rsp.vectorShape.vectorBitSizeLog2;
+        // Logical expansion ratio = ML
+        //   lanewise=true  (logical lanewise conversion)
+        //   -> ML = phyElementSize / domElementSize
+        //   lanewise=false (reinterpret)
+        //   -> ML = 1
         int laneChangeLog2 = 0;
         if (lanewise) {
             laneChangeLog2 = (rsp.laneType.elementSizeLog2 -
                               dsp.laneType.elementSizeLog2);
         }
+        // ML = |f(X)| / |X|
+        // -> |f(X)| = |X| * ML
         int resSizeLog2 = domSizeLog2 + laneChangeLog2;
         // resSizeLog2 = 0 => 1-lane vector shrinking to 1-byte lane-size
         // resSizeLog2 < 0 => small vector shrinking by more than a lane-size
         assert(resSizeLog2 >= 0);
-        // Expansion ratio: expansionLog2 = resSizeLog2 - phySizeLog2;
         if (!partInRange(resSizeLog2, phySizeLog2, part)) {
             // fall through...
         } else if (resSizeLog2 > phySizeLog2) {
-            // Expansion by M means we must slice a block from the domain.
-            // What is that block size?  It is 1/M of the domain.
-            // Let's compute the log2 of that block size, as 's'.
-            //s = (dsp.laneCountLog2() - expansionLog2);
-            //s = ((domSizeLog2 - dsp.laneType.elementSizeLog2) - expansionLog2);
-            //s = (domSizeLog2 - expansionLog2 - dsp.laneType.elementSizeLog2);
+            // Selection (truncation).
+            // Output selection ratio:
+            //   MS = |f(X)| / |Y|
+            //
+            // We must slice one of MS blocks from the domain,
+            // with exactly L lanes:
+            //   L = X.laneCount     / MS
+            //     = (|X| / |ETYPE|) / MS
+            //     = (|X| / |ETYPE|) / (|f(X)| / |Y|)
+            //     = |Y| / (|f(X)| / |X|) / |ETYPE|
+            //     = |Y| / ML             / |ETYPE|
+            //
+            //   origin = part * L
+            //
             int s = phySizeLog2 - laneChangeLog2 - dsp.laneType.elementSizeLog2;
             // Scale the part number by the input block size, in input lanes.
             if ((s & 31) == s)  // sanity check
                 return part << s;
         } else {
+            // Output expansion ratio: MOLog2 = phySizeLog2 - resSizeLog2
             // Contraction by M means we must drop a block into the range.
             // What is that block size?  It is 1/M of the range.
             // Let's compute the log2 of that block size, as 's'.
