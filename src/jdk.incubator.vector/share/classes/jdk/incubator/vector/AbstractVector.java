@@ -597,8 +597,6 @@ abstract class AbstractVector<E> extends Vector<E> {
         // range / physical output: Y        -> FTYPE
         int domSizeLog2 = dsp.vectorShape.vectorBitSizeLog2;
         int phySizeLog2 = rsp.vectorShape.vectorBitSizeLog2;
-        int dsize = dsp.elementSize();
-        int rsize = rsp.elementSize();
 
         // ------------------- Logical Expansion ----------------
         int laneChangeLog2 = 0;
