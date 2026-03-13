@@ -1,0 +1,251 @@
+/*
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+
+package compiler.vectorapi;
+
+import jdk.incubator.vector.*;
+
+/*
+ * @test
+ * @bug 8375631
+ * @key randomness
+ * @summary Testing part number range exception.
+ * @modules jdk.incubator.vector
+ * @run driver ${test.main.class}
+ */
+public class PartNumberTest {
+    public static void main(String[] args) {
+        runExamples();
+    }
+
+    interface TestMethod {
+        Object run();
+    }
+
+    public static void expectSuccess(TestMethod t) {
+        try {
+            t.run();
+        } catch (Exception e) {
+            throw new RuntimeException("Test failed unexpectedly: ", e);
+        }
+    }
+
+    public static void expectAIOOBE(TestMethod t, String msg) {
+        try {
+            t.run();
+        } catch (ArrayIndexOutOfBoundsException e) {
+            String m = e.getMessage();
+            if (m != null && !m.contains(msg)) {
+                throw new RuntimeException("Got exception, but with wrong message. Expected '" + msg + "'.", e);
+            }
+            return; // passed
+        } catch (Exception e) {
+            throw new RuntimeException("Test failed unexpectedly: ", e);
+        }
+        throw new RuntimeException("Did not throw exception. Expected '" + msg + "'.");
+    }
+
+    public static void runExamples() {
+        String msg = null;
+
+        var f2 = FloatVector.broadcast(FloatVector.SPECIES_64, 42.0f);
+        msg = " should be in [0..1], output selection with MS=2; logical: conversion lanewise expanding by ML=2; physical: shape-invariant (MP=1); Species[float, 2, S_64_BIT] -> Species[double, 1, S_64_BIT].";
+        expectAIOOBE( () -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_64, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_64, 0); });
+        expectSuccess(() -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_64, 1); });
+        expectAIOOBE( () -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_64, 2); }, "bad part number 2" + msg);
+
+        expectAIOOBE( () -> { return f2.convert(VectorOperators.F2D, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return f2.convert(VectorOperators.F2D, 0); });
+        expectSuccess(() -> { return f2.convert(VectorOperators.F2D, 1); });
+        expectAIOOBE( () -> { return f2.convert(VectorOperators.F2D, 2); }, "bad part number 2" + msg);
+
+        msg = " should be 0, output in-place (MO=MS=1); logical: conversion lanewise expanding by ML=2; physical: expansion by MP=2; Species[float, 2, S_64_BIT] -> Species[double, 2, S_128_BIT].";
+        expectAIOOBE( () -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_128, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_128, 0); });
+        expectAIOOBE( () -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_128, 1); }, "bad part number 1" + msg);
+
+        msg = " should be in [-1..0], output insertion with MO=2; logical: conversion lanewise expanding by ML=2; physical: expansion by MP=4; Species[float, 2, S_64_BIT] -> Species[double, 4, S_256_BIT]";
+        expectAIOOBE( () -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_256, -2); }, "bad part number -2" + msg);
+        expectSuccess(() -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_256, -1); });
+        expectSuccess(() -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_256, 0); });
+        expectAIOOBE( () -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_256, 1); }, "bad part number 1" + msg);
+
+        msg = " should be in [-3..0], output insertion with MO=4; logical: conversion lanewise expanding by ML=2; physical: expansion by MP=8; Species[float, 2, S_64_BIT] -> Species[double, 8, S_512_BIT]";
+        expectAIOOBE( () -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_512, -4); }, "bad part number -4" + msg);
+        expectSuccess(() -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_512, -3); });
+        expectSuccess(() -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_512, -2); });
+        expectSuccess(() -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_512, -1); });
+        expectSuccess(() -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_512, 0); });
+        expectAIOOBE( () -> { return f2.convertShape(VectorOperators.F2D, DoubleVector.SPECIES_512, 1); }, "bad part number 1" + msg);
+
+        msg = " should be 0, output in-place (MO=MS=1); logical: reinterpreting (ML=1); physical: shape-invariant (MP=1); Species[float, 2, S_64_BIT] -> Species[double, 1, S_64_BIT].";
+        expectAIOOBE( () -> { return f2.reinterpretShape(DoubleVector.SPECIES_64, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_64, 0); });
+        expectAIOOBE( () -> { return f2.reinterpretShape(DoubleVector.SPECIES_64, 1); }, "bad part number 1" + msg);
+
+        msg = " should be in [-1..0], output insertion with MO=2; logical: reinterpreting (ML=1); physical: expansion by MP=2; Species[float, 2, S_64_BIT] -> Species[double, 2, S_128_BIT].";
+        expectAIOOBE( () -> { return f2.reinterpretShape(DoubleVector.SPECIES_128, -2); }, "bad part number -2" + msg);
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_128, -1); });
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_128, 0); });
+        expectAIOOBE( () -> { return f2.reinterpretShape(DoubleVector.SPECIES_128, 1); }, "bad part number 1" + msg);
+
+        msg = " should be in [-3..0], output insertion with MO=4; logical: reinterpreting (ML=1); physical: expansion by MP=4; Species[float, 2, S_64_BIT] -> Species[double, 4, S_256_BIT].";
+        expectAIOOBE( () -> { return f2.reinterpretShape(DoubleVector.SPECIES_256, -4); }, "bad part number -4" + msg);
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_256, -3); });
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_256, -2); });
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_256, -1); });
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_256, 0); });
+        expectAIOOBE( () -> { return f2.reinterpretShape(DoubleVector.SPECIES_256, 1); }, "bad part number 1" + msg);
+
+        msg = " should be in [-7..0], output insertion with MO=8; logical: reinterpreting (ML=1); physical: expansion by MP=8; Species[float, 2, S_64_BIT] -> Species[double, 8, S_512_BIT].";
+        expectAIOOBE( () -> { return f2.reinterpretShape(DoubleVector.SPECIES_512, -8); }, "bad part number -8" + msg);
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_512, -7); });
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_512, -6); });
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_512, -5); });
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_512, -4); });
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_512, -3); });
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_512, -2); });
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_512, -1); });
+        expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_512, 0); });
+        expectAIOOBE( () -> { return f2.reinterpretShape(DoubleVector.SPECIES_512, 1); }, "bad part number 1" + msg);
+
+        var i8 = IntVector.broadcast(IntVector.SPECIES_256, 42);
+        msg = " should be in [0..7], output selection with MS=8; logical: conversion lanewise expanding by ML=2; physical: contraction by MP=1/4; Species[int, 8, S_256_BIT] -> Species[long, 1, S_64_BIT].";
+        expectAIOOBE( () -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_64, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_64, 0); });
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_64, 1); });
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_64, 2); });
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_64, 3); });
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_64, 4); });
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_64, 5); });
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_64, 6); });
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_64, 7); });
+        expectAIOOBE( () -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_64, 8); }, "bad part number 8" + msg);
+
+        msg = " should be in [0..3], output selection with MS=4; logical: conversion lanewise expanding by ML=2; physical: contraction by MP=1/2; Species[int, 8, S_256_BIT] -> Species[long, 2, S_128_BIT].";
+        expectAIOOBE( () -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_128, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_128, 0); });
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_128, 1); });
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_128, 2); });
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_128, 3); });
+        expectAIOOBE( () -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_128, 4); }, "bad part number 4" + msg);
+
+        msg = " should be in [0..1], output selection with MS=2; logical: conversion lanewise expanding by ML=2; physical: shape-invariant (MP=1); Species[int, 8, S_256_BIT] -> Species[long, 4, S_256_BIT].";
+        expectAIOOBE( () -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_256, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_256, 0); });
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_256, 1); });
+        expectAIOOBE( () -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_256, 2); }, "bad part number 2" + msg);
+
+        expectAIOOBE( () -> { return i8.convert(VectorOperators.I2L, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return i8.convert(VectorOperators.I2L, 0); });
+        expectSuccess(() -> { return i8.convert(VectorOperators.I2L, 1); });
+        expectAIOOBE( () -> { return i8.convert(VectorOperators.I2L, 2); }, "bad part number 2" + msg);
+
+        msg = " should be 0, output in-place (MO=MS=1); logical: conversion lanewise expanding by ML=2; physical: expansion by MP=2; Species[int, 8, S_256_BIT] -> Species[long, 8, S_512_BIT].";
+        expectAIOOBE( () -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_512, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_512, 0); });
+        expectAIOOBE( () -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_512, 1); }, "bad part number 1" + msg);
+
+        msg = " should be in [0..3], output selection with MS=4; logical: reinterpreting (ML=1); physical: contraction by MP=1/4; Species[int, 8, S_256_BIT] -> Species[long, 1, S_64_BIT].";
+        expectAIOOBE( () -> { return i8.reinterpretShape(LongVector.SPECIES_64, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return i8.reinterpretShape(LongVector.SPECIES_64, 0); });
+        expectSuccess(() -> { return i8.reinterpretShape(LongVector.SPECIES_64, 1); });
+        expectSuccess(() -> { return i8.reinterpretShape(LongVector.SPECIES_64, 2); });
+        expectSuccess(() -> { return i8.reinterpretShape(LongVector.SPECIES_64, 3); });
+        expectAIOOBE( () -> { return i8.reinterpretShape(LongVector.SPECIES_64, 4); }, "bad part number 4" + msg);
+
+        msg = " should be in [0..1], output selection with MS=2; logical: reinterpreting (ML=1); physical: contraction by MP=1/2; Species[int, 8, S_256_BIT] -> Species[long, 2, S_128_BIT].";
+        expectAIOOBE( () -> { return i8.reinterpretShape(LongVector.SPECIES_128, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return i8.reinterpretShape(LongVector.SPECIES_128, 0); });
+        expectSuccess(() -> { return i8.reinterpretShape(LongVector.SPECIES_128, 1); });
+        expectAIOOBE( () -> { return i8.reinterpretShape(LongVector.SPECIES_128, 2); }, "bad part number 2" + msg);
+
+        msg = " should be 0, output in-place (MO=MS=1); logical: reinterpreting (ML=1); physical: shape-invariant (MP=1); Species[int, 8, S_256_BIT] -> Species[long, 4, S_256_BIT].";
+        expectAIOOBE( () -> { return i8.reinterpretShape(LongVector.SPECIES_256, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return i8.reinterpretShape(LongVector.SPECIES_256, 0); });
+        expectAIOOBE( () -> { return i8.reinterpretShape(LongVector.SPECIES_256, 1); }, "bad part number 1" + msg);
+
+        msg = " should be in [-1..0], output insertion with MO=2; logical: reinterpreting (ML=1); physical: expansion by MP=2; Species[int, 8, S_256_BIT] -> Species[long, 8, S_512_BIT].";
+        expectAIOOBE( () -> { return i8.reinterpretShape(LongVector.SPECIES_512, -2); }, "bad part number -2" + msg);
+        expectSuccess(() -> { return i8.reinterpretShape(LongVector.SPECIES_512, -1); });
+        expectSuccess(() -> { return i8.reinterpretShape(LongVector.SPECIES_512, 0); });
+        expectAIOOBE( () -> { return i8.reinterpretShape(LongVector.SPECIES_512, 1); }, "bad part number 1" + msg);
+
+        var l4 = LongVector.broadcast(LongVector.SPECIES_256, 42);
+        msg = " should be in [0..1], output selection with MS=2; logical: conversion lanewise contracting by ML=1/2; physical: contraction by MP=1/4; Species[long, 4, S_256_BIT] -> Species[int, 2, S_64_BIT].";
+        expectAIOOBE( () -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_64, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_64, 0); });
+        expectSuccess(() -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_64, 1); });
+        expectAIOOBE( () -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_64, 2); }, "bad part number 2" + msg);
+
+        msg = " should be 0, output in-place (MO=MS=1); logical: conversion lanewise contracting by ML=1/2; physical: contraction by MP=1/2; Species[long, 4, S_256_BIT] -> Species[int, 4, S_128_BIT].";
+        expectAIOOBE( () -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_128, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_128, 0); });
+        expectAIOOBE( () -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_128, 1); }, "bad part number 1" + msg);
+
+        msg = " should be in [-1..0], output insertion with MO=2; logical: conversion lanewise contracting by ML=1/2; physical: shape-invariant (MP=1); Species[long, 4, S_256_BIT] -> Species[int, 8, S_256_BIT].";
+        expectAIOOBE( () -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_256, -2); }, "bad part number -2" + msg);
+        expectSuccess(() -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_256, -1); });
+        expectSuccess(() -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_256, 0); });
+        expectAIOOBE( () -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_256, 1); }, "bad part number 1" + msg);
+
+        expectAIOOBE( () -> { return l4.convert(VectorOperators.L2I, -2); }, "bad part number -2" + msg);
+        expectSuccess(() -> { return l4.convert(VectorOperators.L2I, -1); });
+        expectSuccess(() -> { return l4.convert(VectorOperators.L2I, 0); });
+        expectAIOOBE( () -> { return l4.convert(VectorOperators.L2I, 1); }, "bad part number 1" + msg);
+
+        msg = " should be in [-3..0], output insertion with MO=4; logical: conversion lanewise contracting by ML=1/2; physical: expansion by MP=2; Species[long, 4, S_256_BIT] -> Species[int, 16, S_512_BIT].";
+        expectAIOOBE( () -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_512, -4); }, "bad part number -4" + msg);
+        expectSuccess(() -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_512, -3); });
+        expectSuccess(() -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_512, -2); });
+        expectSuccess(() -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_512, -1); });
+        expectSuccess(() -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_512, 0); });
+        expectAIOOBE( () -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_512, 1); }, "bad part number 1" + msg);
+
+        msg = " should be in [0..3], output selection with MS=4; logical: reinterpreting (ML=1); physical: contraction by MP=1/4; Species[long, 4, S_256_BIT] -> Species[int, 2, S_64_BIT].";
+        expectAIOOBE( () -> { return l4.reinterpretShape(IntVector.SPECIES_64, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return l4.reinterpretShape(IntVector.SPECIES_64, 0); });
+        expectSuccess(() -> { return l4.reinterpretShape(IntVector.SPECIES_64, 1); });
+        expectSuccess(() -> { return l4.reinterpretShape(IntVector.SPECIES_64, 2); });
+        expectSuccess(() -> { return l4.reinterpretShape(IntVector.SPECIES_64, 3); });
+        expectAIOOBE( () -> { return l4.reinterpretShape(IntVector.SPECIES_64, 4); }, "bad part number 4" + msg);
+
+        msg = " should be in [0..1], output selection with MS=2; logical: reinterpreting (ML=1); physical: contraction by MP=1/2; Species[long, 4, S_256_BIT] -> Species[int, 4, S_128_BIT].";
+        expectAIOOBE( () -> { return l4.reinterpretShape(IntVector.SPECIES_128, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return l4.reinterpretShape(IntVector.SPECIES_128, 0); });
+        expectSuccess(() -> { return l4.reinterpretShape(IntVector.SPECIES_128, 1); });
+        expectAIOOBE( () -> { return l4.reinterpretShape(IntVector.SPECIES_128, 2); }, "bad part number 2" + msg);
+
+        msg = " should be 0, output in-place (MO=MS=1); logical: reinterpreting (ML=1); physical: shape-invariant (MP=1); Species[long, 4, S_256_BIT] -> Species[int, 8, S_256_BIT].";
+        expectAIOOBE( () -> { return l4.reinterpretShape(IntVector.SPECIES_256, -1); }, "bad part number -1" + msg);
+        expectSuccess(() -> { return l4.reinterpretShape(IntVector.SPECIES_256, 0); });
+        expectAIOOBE( () -> { return l4.reinterpretShape(IntVector.SPECIES_256, 1); }, "bad part number 1" + msg);
+
+        msg = " should be in [-1..0], output insertion with MO=2; logical: reinterpreting (ML=1); physical: expansion by MP=2; Species[long, 4, S_256_BIT] -> Species[int, 16, S_512_BIT].";
+        expectAIOOBE( () -> { return l4.reinterpretShape(IntVector.SPECIES_512, -2); }, "bad part number -2" + msg);
+        expectSuccess(() -> { return l4.reinterpretShape(IntVector.SPECIES_512, -1); });
+        expectSuccess(() -> { return l4.reinterpretShape(IntVector.SPECIES_512, 0); });
+        expectAIOOBE( () -> { return l4.reinterpretShape(IntVector.SPECIES_512, 1); }, "bad part number 1" + msg);
+    }
+}
