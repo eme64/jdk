@@ -297,15 +297,38 @@ public class PartNumberTest {
     public static void testReinterpret(VectorSpecies s1, VectorSpecies s2, int part) {
         TestMethod op = () -> { return s1.zero().reinterpretShape(s2, part); };
         int size1 = s1.vectorBitSize();
-        int size2 = s1.vectorBitSize();
+        int size2 = s2.vectorBitSize();
 
+        String logicalOp = "reinterpreting (ML=1)";
         String physicalOp = null;
+        String outputOp = null;
+        String partRange = null;
+        int lo = 0, hi = 0;
         if (size1 == size2) {
             physicalOp = "shape-invariant (MP=1)";
+            outputOp = "output in-place (MO=MS=1)";
+            partRange = "0";
+            lo = 0; hi = 0;
         } else if (size1 > size2) {
-            physicalOp = "contraction by MP=1/" + (size1 / size2);
+            int MS = size1 / size2;
+            physicalOp = "contraction by MP=1/" + MS;
+            outputOp = "output selection with MS=" + MS;
+            partRange = "in [0.." + (MS-1) + "]";
+            lo = 0; hi = MS-1;
         } else {
-            physicalOp = "expansion by MP=" + (size2 / size1);
+            int MO = size2 / size1;
+            physicalOp = "expansion by MP=" + MO;
+            outputOp = "output insertion with MO=" + MO;
+            partRange = "in [" + (-MO+1) + "..0]";
+            lo = -MO+1; hi = 0;
+        }
+
+        if (lo <= part && part <= hi) {
+            expectSuccess(op);
+        } else {
+            String msg = String.format("bad part number %d should be %s, %s; logical: %s; physical: %s; %s -> %s.",
+                                       part, partRange, outputOp, logicalOp, physicalOp, s1, s2);
+            expectAIOOBE(op, msg);
         }
     }
 }

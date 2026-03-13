@@ -600,7 +600,6 @@ abstract class AbstractVector<E> extends Vector<E> {
 
         // ------------------- Logical Expansion ----------------
         int laneChangeLog2 = 0;
-        String ML = null; // logical expansion ratio
         String logicalOp = null;
         if (lanewise) {
             // Logical lanewise conversion
@@ -608,21 +607,18 @@ abstract class AbstractVector<E> extends Vector<E> {
             laneChangeLog2 = (rsp.laneType.elementSizeLog2 -
                               dsp.laneType.elementSizeLog2);
             if (laneChangeLog2 > 0) {
-                ML = String.format("%d", 1 << laneChangeLog2);
+                String ML = String.format("%d", 1 << laneChangeLog2);
                 logicalOp = String.format("conversion lanewise expanding by ML=%s", ML);
             } else if (laneChangeLog2 < 0) {
-                ML = String.format("1/%d", 1 << -laneChangeLog2);
+                String ML = String.format("1/%d", 1 << -laneChangeLog2);
                 logicalOp = String.format("conversion lanewise contracting by ML=%s", ML);
             } else {
-                ML = "1";
-                logicalOp = String.format("conversion lanewise in-place (ML=%s)", ML);
+                logicalOp = "conversion lanewise in-place (ML=1)";
             }
         } else {
             // Logical reinterpret
-            //   ML = 1
             laneChangeLog2 = 0;
-            ML = "1";
-            logicalOp = String.format("reinterpreting (ML=%s)", ML);
+            logicalOp = "reinterpreting (ML=1)";
         }
 
         // ------------------- Physical Expansion ----------------
