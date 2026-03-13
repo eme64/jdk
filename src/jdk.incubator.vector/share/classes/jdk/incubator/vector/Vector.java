@@ -897,7 +897,7 @@ import java.util.Arrays;
  * (This makes it easy to assemble larger results with {@code XOR}.)
  * The insertion position in {@code Y} is always an integral multiple
  * of the bit-size of the logical result {@code f(X)}.
- * This is often, but not always, at the offset zero, the beginning of
+ * This is often, but not always, at offset zero, the beginning of
  * {@code Y}.
  *
  * </li><li>We must perform <em>selection</em> (or
@@ -936,9 +936,9 @@ import java.util.Arrays;
  * the output, but in reverse.  If {@code MS>1}, then {@code f(X)}
  * overflows the size of {@code Y}, and only a part of {@code f(X)}
  * may be selected into {@code Y}.  There are {@code MS} distinct
- * positions in {@code f(X)} from which a bit-string might copied into
- * {@code Y}.  The positions are multiples of the size of {@code Y},
- * starting with zero.
+ * positions in {@code f(X)} from which a bit-string might be copied
+ * into {@code Y}.  The positions are multiples of the size of
+ * {@code Y}, starting with zero.
  * </li></ul>
  *
  * <p> When {@code MS>1} (and {@code MO<1}), a too-large logical
@@ -948,7 +948,7 @@ import java.util.Arrays;
  * or both may happen in one operation, as when a vector of floats is
  * logically expanded to a vector of doubles ({@code ML=2}), and then
  * is stored into a shape with room for only half the original number
- * of lanes ({@code MP=1/2}.  In that case, one part out of four
+ * of lanes ({@code MP=1/2}).  In that case, one part out of four
  * ({@code MS=4}) must be selected from the logical result.  The other
  * three quarters are discarded.  This required selection can also be
  * viewed as a truncation of the logical result into the physical
