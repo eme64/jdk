@@ -626,17 +626,15 @@ abstract class AbstractVector<E> extends Vector<E> {
         }
 
         // ------------------- Physical Expansion ----------------
-        String MP = null;
         String physicalOp = null;
         if (domSizeLog2 < phySizeLog2) {
-            MP = String.format("%d", 1 << (phySizeLog2 - domSizeLog2));
-            physicalOp = String.format("physical expansion by MP=%s", MP);
+            String MP = String.format("%d", 1 << (phySizeLog2 - domSizeLog2));
+            physicalOp = String.format("expansion by MP=%s", MP);
         } else if (phySizeLog2 < domSizeLog2) {
-            MP = String.format("1/%d", 1 << (domSizeLog2 - phySizeLog2));
-            physicalOp = String.format("physical contraction by MP=%s", MP);
+            String MP = String.format("1/%d", 1 << (domSizeLog2 - phySizeLog2));
+            physicalOp = String.format("contraction by MP=%s", MP);
         } else {
-            MP = "1";
-            physicalOp = String.format("shape-invariant (MP=%s)", MP);
+            physicalOp = "shape-invariant (MP=1)";
         }
 
         // ---------- Output Expansion (Select/Insert) ------------
@@ -644,7 +642,7 @@ abstract class AbstractVector<E> extends Vector<E> {
         String outputOp = null;
         String partRange = null;
         if (limit < -1) {
-            outputOp = String.format("output insertion with MO=%d", limit);
+            outputOp = String.format("output insertion with MO=%d", -limit);
             partRange = String.format("in [%d..0]", limit+1);
         } else if (limit > 1) {
             outputOp = String.format("output selection with MS=%d", limit);
