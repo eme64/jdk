@@ -23,6 +23,9 @@
 
 package compiler.vectorapi;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 import jdk.incubator.vector.*;
 
 /*
@@ -36,6 +39,7 @@ import jdk.incubator.vector.*;
 public class PartNumberTest {
     public static void main(String[] args) {
         runExamples();
+        runExhaustive();
     }
 
     interface TestMethod {
@@ -247,5 +251,61 @@ public class PartNumberTest {
         expectSuccess(() -> { return l4.reinterpretShape(IntVector.SPECIES_512, -1); });
         expectSuccess(() -> { return l4.reinterpretShape(IntVector.SPECIES_512, 0); });
         expectAIOOBE( () -> { return l4.reinterpretShape(IntVector.SPECIES_512, 1); }, "bad part number 1" + msg);
+    }
+
+    public static List<VectorSpecies> generateSpecies() {
+        List<VectorSpecies> s = new ArrayList<>();
+        List<VectorShape> shapes = List.of(VectorShape.S_64_BIT,
+                                   VectorShape.S_128_BIT,
+                                   VectorShape.S_256_BIT,
+                                   VectorShape.S_512_BIT);
+        List<Class> etypes = List.of(byte.class,
+                                     short.class,
+                                     int.class,
+                                     long.class,
+                                     float.class,
+                                     double.class);
+        for (var etype : etypes) {
+            for (var shape : shapes) {
+                s.add(VectorSpecies.of(etype, shape));
+            }
+        }
+        return s;
+    }
+
+    public static void runExhaustive() {
+        Random rnd = new Random();
+        List<VectorSpecies> allSpecies = generateSpecies();
+
+        List<Integer> parts = new ArrayList<>();
+        for (int i = -100; i <= 100; i++) {
+            parts.add(i);
+        }
+        for (int i = 0; i <= 10; i++) {
+            parts.add(rnd.nextInt());
+        }
+
+        for (int part : parts) {
+            for (var s1 : allSpecies) {
+                for (var s2 : allSpecies) {
+                    testReinterpret(s1, s2, part);
+                }
+            }
+        }
+    }
+
+    public static void testReinterpret(VectorSpecies s1, VectorSpecies s2, int part) {
+        TestMethod op = () -> { return s1.zero().reinterpretShape(s2, part); };
+        int size1 = s1.vectorBitSize();
+        int size2 = s1.vectorBitSize();
+
+        String physicalOp = null;
+        if (size1 == size2) {
+            physicalOp = "shape-invariant (MP=1)";
+        } else if (size1 > size2) {
+            physicalOp = "contraction by MP=1/" + (size1 / size2);
+        } else {
+            physicalOp = "expansion by MP=" + (size2 / size1);
+        }
     }
 }
