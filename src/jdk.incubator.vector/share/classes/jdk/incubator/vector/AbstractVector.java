@@ -569,7 +569,7 @@ abstract class AbstractVector<E> extends Vector<E> {
         int limit = partLimit(resSizeLog2, phySizeLog2);
         if (limit > 0) {  // selection (output is truncation of logical result)
             return part >= 0 && part < limit;
-        } else if (limit < 0) {  // contraction (output is logical result with padding)
+        } else if (limit < 0) {  // insertion (output is logical result with padding)
             return part > -limit && part <= 0;
         } else { // in-place
             return (part == 0);
