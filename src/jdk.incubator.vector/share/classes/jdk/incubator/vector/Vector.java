@@ -851,13 +851,13 @@ import java.util.Arrays;
  * definitions to help navigate the complexity of such compromises:
  *
  * <ul><li>The <em>input shape</em> of a vector operation is the
- * shape of the vector object which receives the method call,
- * which is also the same as the shape of any other vector arguments.
+ * shape of the vector object {@code X} which receives the method call.
+ * Any other vector arguments have the same input shape.
  *
  * </li><li>The <em>physical output shape</em> of a vector operation
- * is the shape of the output container, the vector produced by the
- * method call.  It is usually the same as the input shape, but may
- * differ in the case of a shape-changing method.
+ * is the shape of the output container, the vector {@code Y} produced
+ * by the method call.  It is usually the same as the input shape,
+ * but may differ in the case of a shape-changing method.
  * (Note:  We are talking about the "physics" of an object-oriented
  * API here, a computational structure which is easily compiled to
  * various kinds of hardware, but not itself a hardware specification.
@@ -890,23 +890,18 @@ import java.util.Arrays;
  * of a bitwise reinterpretation method, it is the only ratio of
  * interest.
  *
- * </li><li>We must perform <em>insertion</em> (with <em>padding</em>)
- * when the output container {@code Y} is larger than the logical
- * result {@code f(X)}.  By convention, in this API, padding is always
- * zero bits.
- * (This makes it easy to assemble larger results with {@code XOR}.)
+ * </li><li><em>Insertion</em> occurs when when the output container
+ * {@code Y} is larger than the logical result {@code f(X)}.
  * The insertion position in {@code Y} is always an integral multiple
  * of the bit-size of the logical result {@code f(X)}.
- * This is often, but not always, at offset zero, the beginning of
- * {@code Y}.
+ * The rest of the output consists of zero bit padding.
+ * (This makes it easy to assemble larger results with {@code XOR}.)
  *
- * </li><li>We must perform <em>selection</em> (or
- * <em>truncation</em>) when the output container {@code Y} is smaller
- * than the logical result.  By convention, in this API, selection
- * from {@code f(X)} always packs {@code Y} with a string of bits
- * located at an integral multiple of the bit-size of {@code Y}.
- * This is often, but not always, at offset zero, the beginning of
- * {@code f(X)}.
+ * </li><li><em>Selection</em> occurs when the output container
+ * {@code Y} is smaller than the logical result {@code f(X)}.
+ * The selection position in {@code f(X)} is always an integral multiple
+ * of the bit-size of the output {@code Y}.
+ * The rest of the logical result is lost.
  *
  * </li><li>An <em>in-place operation</em> occurs when the logical
  * result and the physical output shape are the same size.  When this
