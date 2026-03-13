@@ -1021,14 +1021,8 @@ import java.util.Arrays;
  *
  * <p> Specifically, the lanes selected from the logical result of an
  * expansion are numbered in the range {@code [R..R+L-1]}, where
- * {@code L} is the {@code VLENGTH} of the physical output vector, and
- * the origin of the block, {@code R}, is {@code part*L}.
- **
- * <p> Specifically, the lanes selected from the logical result of an
- * expansion are numbered in the range {@code [R..R+L-1]}, where
- * {@code L} is the {@code VLENGTH} of the physical output vector
- * divided by {@code ML}. The origin of the block, {@code R}, is
- * {@code part*L}.
+ * {@code L} is the {@code VLENGTH} of the input vector divided by
+ * {@code ML}. The origin of the block, {@code R}, is {@code part*L}.
  *
  * <p> A similar convention applies to any vector method that might
  * require insertion, i.e. padding ({@code MO>1}, {@code ML<MP}).

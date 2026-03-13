@@ -483,6 +483,9 @@ abstract class AbstractVector<E> extends Vector<E> {
                           AbstractSpecies<?> rsp,
                           boolean lanewise,
                           int part) {
+        // domain / input:         X        -> ETYPE
+        // logical result:         f(X)     -> FTYPE
+        // range / pysical output: Y        -> FTYPE
         int domSizeLog2 = dsp.vectorShape.vectorBitSizeLog2;
         int phySizeLog2 = rsp.vectorShape.vectorBitSizeLog2;
         // Logical expansion ratio = ML
@@ -508,9 +511,9 @@ abstract class AbstractVector<E> extends Vector<E> {
             // Output selection ratio:
             //   MS = |f(X)| / |Y|
             //
-            // We must slice one of MS blocks from the domain,
-            // with exactly L lanes:
-            //   L = X.laneCount     / MS
+            // We must slice one of MS blocks from the domain.
+            // The block has L lanes:
+            //   L = X.length        / MS
             //     = (|X| / |ETYPE|) / MS
             //     = (|X| / |ETYPE|) / (|f(X)| / |Y|)
             //     = |Y| / (|f(X)| / |X|) / |ETYPE|
@@ -523,13 +526,19 @@ abstract class AbstractVector<E> extends Vector<E> {
             if ((s & 31) == s)  // sanity check
                 return part << s;
         } else {
-            // Output expansion ratio: MOLog2 = phySizeLog2 - resSizeLog2
-            // Contraction by M means we must drop a block into the range.
-            // What is that block size?  It is 1/M of the range.
-            // Let's compute the log2 of that block size, as 's'.
-            //s = (rsp.laneCountLog2() + expansionLog2);
-            //s = ((phySizeLog2 - rsp.laneType.elementSizeLog2) + expansionLog2);
-            //s = (phySizeLog2 + expansionLog2 - rsp.laneType.elementSizeLog2);
+            // Insertion (padding).
+            // Output expansion ratio:
+            //   MO = |Y| / |f(X)|
+            //
+            // We must drop the logical result into one of MO blocks of the range.
+            // The block has L lanes:
+            //   L = Y.length        / MO
+            //     = (|Y| / |FTYPE|) / MO
+            //     = (|Y| / |FTYPE|) / (|Y| / |f(X)|)
+            //     = |f(X)| / |FTYPE|
+            //
+            //   origin = -part * L
+            //
             int s = resSizeLog2 - rsp.laneType.elementSizeLog2;
             // Scale the part number by the output block size, in output lanes.
             if ((s & 31) == s)  // sanity check
