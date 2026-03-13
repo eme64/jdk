@@ -568,9 +568,9 @@ abstract class AbstractVector<E> extends Vector<E> {
     private static boolean partInRangeSlow(int resSizeLog2, int phySizeLog2, int part) {
         int limit = partLimit(resSizeLog2, phySizeLog2);
         if (limit > 0) {  // selection (output is truncation of logical result)
-            return part >= 0 && part < limit;
+            return 0 <= part && part < limit;
         } else if (limit < 0) {  // insertion (output is logical result with padding)
-            return part > -limit && part <= 0;
+            return limit < part && part <= 0;
         } else { // in-place
             return (part == 0);
         }

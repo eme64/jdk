@@ -34,7 +34,7 @@ import jdk.incubator.vector.*;
  * @key randomness
  * @summary Testing part number range exception.
  * @modules jdk.incubator.vector
- * @run driver ${test.main.class}
+ * @run main ${test.main.class}
  */
 public class PartNumberTest {
     public static void main(String[] args) {
