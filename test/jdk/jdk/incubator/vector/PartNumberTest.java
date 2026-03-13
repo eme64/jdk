@@ -288,13 +288,73 @@ public class PartNumberTest {
         for (int part : parts) {
             for (var s1 : allSpecies) {
                 for (var s2 : allSpecies) {
-                    testReinterpret(s1, s2, part);
+                    var convC = VectorOperators.Conversion.ofCast(s1.elementType(), s2.elementType());
+                    var convR = VectorOperators.Conversion.ofReinterpret(s1.elementType(), s2.elementType());
+                    testConvert(s1, s2, part, () -> { return s1.zero().convertShape(convC, s2, part); });
+                    testConvert(s1, s2, part, () -> { return s1.zero().convertShape(convR, s2, part); });
+                    if (s1.vectorBitSize() == s2.vectorBitSize()) {
+                        // Shape-invariant
+                        testConvert(s1, s2, part, () -> { return s1.zero().convert(convC, part); });
+                        testConvert(s1, s2, part, () -> { return s1.zero().convert(convR, part); });
+                    }
+                    testReinterpretShape(s1, s2, part);
                 }
             }
         }
     }
 
-    public static void testReinterpret(VectorSpecies s1, VectorSpecies s2, int part) {
+    public static void testConvert(VectorSpecies s1, VectorSpecies s2, int part, TestMethod op) {
+        int size1 = s1.vectorBitSize();
+        int size2 = s2.vectorBitSize();
+        int sizeLogical = size1 * s2.elementSize() / s1.elementSize();
+
+        String logicalOp = null;
+        if (size1 == sizeLogical) {
+            logicalOp = "conversion lanewise in-place (ML=1)";
+        } else if (size1 > sizeLogical) {
+            logicalOp = "conversion lanewise contracting by ML=1/" + (size1 / sizeLogical);
+        } else {
+            logicalOp = "conversion lanewise expanding by ML=" + (sizeLogical / size1);
+        }
+
+        String physicalOp = null;
+        if (size1 == size2) {
+            physicalOp = "shape-invariant (MP=1)";
+        } else if (size1 > size2) {
+            physicalOp = "contraction by MP=1/" + (size1 / size2);
+        } else {
+            physicalOp = "expansion by MP=" + (size2 / size1);
+        }
+
+        String outputOp = null;
+        String partRange = null;
+        int lo = 0, hi = 0;
+        if (sizeLogical == size2) {
+            outputOp = "output in-place (MO=MS=1)";
+            partRange = "0";
+            lo = 0; hi = 0;
+        } else if (sizeLogical > size2) {
+            int MS = sizeLogical / size2;
+            outputOp = "output selection with MS=" + MS;
+            partRange = "in [0.." + (MS-1) + "]";
+            lo = 0; hi = MS-1;
+        } else {
+            int MO = size2 / sizeLogical;
+            outputOp = "output insertion with MO=" + MO;
+            partRange = "in [" + (-MO+1) + "..0]";
+            lo = -MO+1; hi = 0;
+        }
+
+        if (lo <= part && part <= hi) {
+            expectSuccess(op);
+        } else {
+            String msg = String.format("bad part number %d should be %s, %s; logical: %s; physical: %s; %s -> %s.",
+                                       part, partRange, outputOp, logicalOp, physicalOp, s1, s2);
+            expectAIOOBE(op, msg);
+        }
+    }
+
+    public static void testReinterpretShape(VectorSpecies s1, VectorSpecies s2, int part) {
         TestMethod op = () -> { return s1.zero().reinterpretShape(s2, part); };
         int size1 = s1.vectorBitSize();
         int size2 = s2.vectorBitSize();
