@@ -3800,6 +3800,12 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      *        of the result (zero if the operation is shape-invariant)
      * @param <F> the boxed element type of the species
      * @return a vector transformed, by shape and element type, from this vector
+     * @throws ArrayIndexOutOfBoundsException unless {@code part} is zero,
+     *         or else there is selection ({@code MS>1}) and {@code part}
+     *         is in range {@code [0..MS-1]}
+     *         or else there is insertion ({@code MO>1}) and {@code part}
+     *         is in range {@code [-(MO+1)..0]}.
+     *
      * @see Vector#convertShape(VectorOperators.Conversion,VectorSpecies,int)
      * @see Vector#castShape(VectorSpecies,int)
      * @see VectorSpecies#partLimit(VectorSpecies,boolean)
@@ -4197,6 +4203,12 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      *        of the result, or zero if in-place
      * @param <F> the boxed element type of the output species
      * @return a vector converted by element type from this vector
+     * @throws ArrayIndexOutOfBoundsException unless {@code part} is zero,
+     *         or else there is selection ({@code MS>1}) and {@code part}
+     *         is in range {@code [0..MS-1]}
+     *         or else there is insertion ({@code MO>1}) and {@code part}
+     *         is in range {@code [-(MO+1)..0]}.
+     *
      * @see #convert(VectorOperators.Conversion,int)
      * @see #castShape(VectorSpecies,int)
      * @see #reinterpretShape(VectorSpecies,int)
