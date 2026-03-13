@@ -483,9 +483,9 @@ abstract class AbstractVector<E> extends Vector<E> {
                           AbstractSpecies<?> rsp,
                           boolean lanewise,
                           int part) {
-        // domain / input:         X        -> ETYPE
-        // logical result:         f(X)     -> FTYPE
-        // range / pysical output: Y        -> FTYPE
+        // domain / input:          X        -> ETYPE
+        // logical result:          f(X)     -> FTYPE
+        // range / physical output: Y        -> FTYPE
         int domSizeLog2 = dsp.vectorShape.vectorBitSizeLog2;
         int phySizeLog2 = rsp.vectorShape.vectorBitSizeLog2;
         // Logical expansion ratio = ML
@@ -592,59 +592,71 @@ abstract class AbstractVector<E> extends Vector<E> {
               AbstractSpecies<?> rsp,
               boolean lanewise,
               int part) {
+        // domain / input:          X        -> ETYPE
+        // logical result:          f(X)     -> FTYPE
+        // range / physical output: Y        -> FTYPE
         int domSizeLog2 = dsp.vectorShape.vectorBitSizeLog2;
         int phySizeLog2 = rsp.vectorShape.vectorBitSizeLog2;
+        int dsize = dsp.elementSize();
+        int rsize = rsp.elementSize();
+
+        // ------------------- Logical Expansion ----------------
         int laneChangeLog2 = 0;
+        String ML = null; // logical expansion ratio
+        String logicalOp = null;
         if (lanewise) {
+            // Logical lanewise conversion
+            //   ML = |FTYPE| / |ETYPE| = phyElementSize / domElementSize
             laneChangeLog2 = (rsp.laneType.elementSizeLog2 -
                               dsp.laneType.elementSizeLog2);
+            if (laneChangeLog2 > 0) {
+                ML = String.format("%d", 1 << laneChangeLog2);
+                logicalOp = String.format("conversion lanewise expanding by ML=%s", ML);
+            } else if (laneChangeLog2 < 0) {
+                ML = String.format("1/%d", 1 << -laneChangeLog2);
+                logicalOp = String.format("conversion lanewise contracting by ML=%s", ML);
+            } else {
+                ML = "1";
+                logicalOp = String.format("conversion lanewise in-place (ML=%s)", ML);
+            }
+        } else {
+            // Logical reinterpret
+            //   ML = 1
+            laneChangeLog2 = 0;
+            ML = "1";
+            logicalOp = String.format("reinterpreting (ML=%s)", ML);
         }
-        int limit = partLimit(domSizeLog2 + laneChangeLog2, phySizeLog2);
-        String ML = "1";
-        String converting = "converting";
-        int dsize = dsp.elementSize(), rsize = rsp.elementSize();
-        String laneChange = "";
-        if (!lanewise) {
-            converting = "reinterpreting";
-        } else if (laneChangeLog2 > 0) {
-            ML = String.format("%d", 1 << laneChangeLog2);
-            laneChange = String.format("; expanding lanes by ML=%s", ML);
-        } else if (laneChangeLog2 < 0) {
-            ML = String.format("1/%d", 1 << -laneChangeLog2);
-            laneChange = String.format("; contracting lanes by ML=%s", ML);
-        }
-        String MP = "1";
-        String shapeChange = null;
+
+        // ------------------- Physical Expansion ----------------
+        String MP = null;
+        String physicalOp = null;
         if (domSizeLog2 < phySizeLog2) {
             MP = String.format("%d", 1 << (phySizeLog2 - domSizeLog2));
+            physicalOp = String.format("physical expansion by MP=%s", MP);
         } else if (phySizeLog2 < domSizeLog2) {
             MP = String.format("1/%d", 1 << (domSizeLog2 - phySizeLog2));
+            physicalOp = String.format("physical contraction by MP=%s", MP);
         } else {
-            shapeChange = "";
+            MP = "1";
+            physicalOp = String.format("shape-invariant (MP=%s)", MP);
         }
-        if (shapeChange == null) {
-            shapeChange = String.format("; reshape factor MP=%s", MP);
+
+        // ---------- Output Expansion (Select/Insert) ------------
+        int limit = partLimit(domSizeLog2 + laneChangeLog2, phySizeLog2);
+        String outputOp = null;
+        String partRange = null;
+        if (limit < -1) {
+            outputOp = String.format("output insertion with MO=%d", limit);
+            partRange = String.format("in [%d..0]", limit+1);
+        } else if (limit > 1) {
+            outputOp = String.format("output selection with MS=%d", limit);
+            partRange = String.format("in [0..%d]", limit-1);
+        } else {
+            outputOp = "output in-place (MO=MS=1)";
+            partRange = "0";
         }
-        String shouldBe = "0";
-        if (limit < -1 || limit > 1) {
-            int bot = 0, top = 0;
-            if (limit < 0)
-                bot = limit+1;
-            else
-                top = limit-1;
-            shouldBe = String.format("in [%d..%d]",
-                                     bot, top);
-        }
-        String formula = ("1".equals(MP) ? "ML" :
-                          "1".equals(ML) ? "1/MP" :
-                          String.format("ML/MP=%s/%s",
-                                        ML.contains("/") ? String.format("(%s)", ML) : ML,
-                                        MP.contains("/") ? String.format("(%s)", MP) : MP));
-        String M = String.format("%s=%s%d", formula, limit < 0 ? "1/" : "", Math.max(1, Math.abs(limit)));
-        String msg = String.format("bad part number %d should be %s; MS=%s%s%s; %s %s -> %s",
-                                   part, shouldBe,
-                                   M, laneChange, shapeChange,
-                                   converting, dsp, rsp);
+        String msg = String.format("bad part number %d should be %s, %s; logical: %s; physical: %s; %s -> %s.",
+                                   part, partRange, outputOp, logicalOp, physicalOp, dsp, rsp);
         return new ArrayIndexOutOfBoundsException(msg);
     }
 
