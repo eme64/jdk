@@ -851,7 +851,7 @@ import java.util.Arrays;
  * definitions to help navigate the complexity of such compromises:
  *
  * <ul><li>The <em>input shape</em> of a vector operation is the
- * the shape of vector object which receives the method call,
+ * shape of the vector object which receives the method call,
  * which is also the same as the shape of any other vector arguments.
  *
  * </li><li>The <em>physical output shape</em> of a vector operation
@@ -936,7 +936,7 @@ import java.util.Arrays;
  * the output, but in reverse.  If {@code MS>1}, then {@code f(X)}
  * overflows the size of {@code Y}, and only a part of {@code f(X)}
  * may be selected into {@code Y}.  There are {@code MS} distinct
- * positions in {@code f(X)} from with a bit-string might copied into
+ * positions in {@code f(X)} from which a bit-string might copied into
  * {@code Y}.  The positions are multiples of the size of {@code Y},
  * starting with zero.
  * </li></ul>
@@ -1036,15 +1036,15 @@ import java.util.Arrays;
  * range {@code [R..R+L-1]}, where {@code L} is the {@code VLENGTH} of
  * the logical result vector, and the inserted position of the block,
  * {@code R}, is {@code R=|part|*L}. {@code part} must be in range
- * {@code [-(MO-1)..0]}.
+ * {@code [-MO+1..0]}.
  *
  * <p> This convention of positive part numbers for selection
  * ({@code [0..MS-1]}) and non-positive part numbers for insertion
- * ({@code [-(MO-1)..0]}) is adopted
+ * ({@code [-MO+1..0]}) is adopted
  * because some methods can perform both expansions and contractions,
  * in a data-dependent manner, and the extra sign on the part number
  * serves as an error check.  If a vector method takes a part number and
- * a invocation of it requires neither insertion (with padding) nor selection,
+ * an invocation of it requires neither insertion (with padding) nor selection,
  * the {@code part} parameter must be exactly zero.
  *
  * <p>
@@ -3804,7 +3804,7 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      *         or else there is selection ({@code MS>1}) and {@code part}
      *         is in range {@code [0..MS-1]}
      *         or else there is insertion ({@code MO>1}) and {@code part}
-     *         is in range {@code [-(MO+1)..0]}.
+     *         is in range {@code [-MO+1..0]}.
      *
      * @see Vector#convertShape(VectorOperators.Conversion,VectorSpecies,int)
      * @see Vector#castShape(VectorSpecies,int)
@@ -4061,7 +4061,7 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      * output and fills it exactly.
      * The rest of the logical result is lost.
      *
-     * <p> A group of such such output vectors, with {@code MS} disjoint
+     * <p> A group of such output vectors, with {@code MS} disjoint
      * selections of logical results, can (manually) represent the
      * complete logical result of the conversion.
      *
@@ -4102,7 +4102,7 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      *         range {@code [0..MS-1]}
      *         or else the lanewise conversion is a contraction leading to
      *         an output insertion ratio {@code MO} and {@code part} is in
-     *         range {@code [-(MO+1)..0]}.
+     *         range {@code [-MO+1..0]}.
      *
      * @see VectorOperators#I2L
      * @see VectorOperators.Conversion#ofCast(Class,Class)
@@ -4207,7 +4207,7 @@ public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vec
      *         or else there is selection ({@code MS>1}) and {@code part}
      *         is in range {@code [0..MS-1]}
      *         or else there is insertion ({@code MO>1}) and {@code part}
-     *         is in range {@code [-(MO+1)..0]}.
+     *         is in range {@code [-MO+1..0]}.
      *
      * @see #convert(VectorOperators.Conversion,int)
      * @see #castShape(VectorSpecies,int)
