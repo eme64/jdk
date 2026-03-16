@@ -22,7 +22,7 @@
  */
 
 /*
- * @test
+ * @test id=AVX2
  * @bug 8369699
  * @key randomness
  * @summary Test the Template Library's expression generation for the Vector API.
@@ -33,17 +33,21 @@
  * @compile ../../compiler/lib/ir_framework/TestFramework.java
  * @compile ../../compiler/lib/generators/Generators.java
  * @compile ../../compiler/lib/verify/Verify.java
- * @run main ${test.main.class}
+ * @run driver ${test.main.class} -XX:UseAVX=2
  */
 
 // TODO: remove the x64 and linux restriction above. I added that for now so we are not flooded
 //       with failures in the CI. We should remove these restriction once more bugs are fixed.
 //       x64 linux is the easiest to debug on for me, that's why I picked it.
 //       In addition, I put a UseAVX=2 restriction below, to avoid AVX512 bugs for now.
+//
+//       A trick to extend this to other platforms: create a new run block, so you have full
+//       freedom to restrict it as necessary for platform and vector features.
 
 package compiler.vectorapi;
 
 import java.util.List;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.Random;
@@ -75,18 +79,21 @@ public class VectorExpressionFuzzer {
         CompileFramework comp = new CompileFramework();
 
         // Add a java source file.
-        comp.addJavaSourceCode("p.xyz.InnerTest", generate(comp));
+        comp.addJavaSourceCode("compiler.vectorapi.templated.Templated", generate(comp));
 
         // Compile the source file.
         comp.compile("--add-modules=jdk.incubator.vector");
 
-        // p.xyz.InnterTest.main(new String[] {});
-        comp.invoke("p.xyz.InnerTest", "main", new Object[] {new String[] {
+        List<String> vmArgs = new ArrayList<>(List.of(
             "--add-modules=jdk.incubator.vector",
             "--add-opens", "jdk.incubator.vector/jdk.incubator.vector=ALL-UNNAMED",
-            "--add-opens", "java.base/java.lang=ALL-UNNAMED",
-            "-XX:UseAVX=2" // TODO: remove restriction, after bugs are fixed
-        }});
+            "--add-opens", "java.base/java.lang=ALL-UNNAMED"
+        ));
+        vmArgs.addAll(Arrays.asList(args)); // Forward args
+        String[] vmArgsArray = vmArgs.toArray(new String[0]);
+
+        // compiler.vectorapi.templated.InnterTest.main(new String[] {});
+        comp.invoke("compiler.vectorapi.templated.Templated", "main", new Object[] { vmArgsArray } );
     }
 
     // For Example 2 below.
@@ -324,7 +331,7 @@ public class VectorExpressionFuzzer {
         // Create the test class, which runs all tests.
         return TestFrameworkClass.render(
             // package and class name.
-            "p.xyz", "InnerTest",
+            "compiler.vectorapi.templated", "Templated",
             // Set of imports.
             Set.of("compiler.lib.verify.*",
                    "java.util.Random",

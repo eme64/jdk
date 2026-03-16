@@ -30,9 +30,7 @@
  * @modules jdk.incubator.vector
  * @library /test/lib /
  * @compile ../lib/verify/Verify.java
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:CompileTaskTimeout=10000
- *                   -XX:CompileCommand=exclude,compiler.lib.template_framework.library.Operations::generateVectorOperations
- *                   compiler.igvn.ExpressionFuzzer
+ * @run driver compiler.igvn.ExpressionFuzzer
  */
 
 package compiler.igvn;
@@ -98,7 +96,8 @@ public class ExpressionFuzzer {
         comp.invoke("compiler.igvn.templated.ExpressionFuzzerInnerTest", "main", new Object[] {new String[] {
             "--add-modules=jdk.incubator.vector",
             "--add-opens", "jdk.incubator.vector/jdk.incubator.vector=ALL-UNNAMED",
-            "--add-opens", "java.base/java.lang=ALL-UNNAMED"
+            "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+            "-XX:+IgnoreUnrecognizedVMOptions", "-XX:CompileTaskTimeout=10000"
         }});
     }
 
