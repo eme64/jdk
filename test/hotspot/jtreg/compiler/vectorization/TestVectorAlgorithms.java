@@ -415,7 +415,7 @@ public class TestVectorAlgorithms {
     @IR(counts = {IRNode.LOAD_VECTOR_F,   "> 0",
                   IRNode.ADD_REDUCTION_V, "> 0",
                   IRNode.FMA_VF,          "> 0"},
-        applyIfCPUFeatureOr = {"sse4.1", "true", "asimd", "true", "rvv", "true"},
+        applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true", "rvv", "true"},
         applyIf = {"UseSuperWord", "true"})
     public float dotProductF_VectorAPI_fma(float[] a, float[] b) {
         return VectorAlgorithmsImpl.dotProductF_VectorAPI_fma(a, b);
