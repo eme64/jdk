@@ -63,6 +63,7 @@ import static compiler.lib.template_framework.Template.let;
 import static compiler.lib.template_framework.Template.$;
 import compiler.lib.template_framework.library.CodeGenerationDataNameType;
 import compiler.lib.template_framework.library.Expression;
+import compiler.lib.template_framework.library.Expression.Nesting;
 import compiler.lib.template_framework.library.Operations;
 import compiler.lib.template_framework.library.TestFrameworkClass;
 import compiler.lib.template_framework.library.PrimitiveType;
@@ -118,7 +119,7 @@ public class VectorExpressionFuzzer {
         var template1 = Template.make("type", (VectorType.Vector type) -> {
             // The depth determines roughly how many operations are going to be used in the expression.
             int depth = RANDOM.nextInt(1, 10);
-            Expression expression = Expression.nestRandomly(type, Operations.ALL_OPERATIONS, depth);
+            Expression expression = Expression.nestRandomly(type, Operations.ALL_OPERATIONS, depth, Nesting.EXACT);
             List<Object> expressionArguments = expression.argumentTypes.stream().map(CodeGenerationDataNameType::con).toList();
             return scope(
                 """
@@ -183,7 +184,7 @@ public class VectorExpressionFuzzer {
         var template2 = Template.make("type", (VectorType.Vector type) -> {
             // The depth determines roughly how many operations are going to be used in the expression.
             int depth = RANDOM.nextInt(1, 10);
-            Expression expression = Expression.nestRandomly(type, Operations.ALL_OPERATIONS, depth);
+            Expression expression = Expression.nestRandomly(type, Operations.ALL_OPERATIONS, depth, Nesting.EXACT);
 
             List<TestArgument> arguments = new ArrayList<>();
             for (int i = 0; i < expression.argumentTypes.size(); i++) {
