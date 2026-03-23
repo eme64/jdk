@@ -185,7 +185,7 @@ public class VectorAlgorithmsImpl {
             mismatchB_idx = new int[0x10000];
             for (int i = 0; i < mismatchB_idx.length; i++) {
                 // Sometimes make no mutation (-1), sometimes pick index for mutation.
-                mismatchB_idx[i] = (random.nextInt(10) == 0) ? -1 : random.nextInt(mismatchB_idx.length);
+                mismatchB_idx[i] = (random.nextInt(10) == 0) ? -1 : random.nextInt(m1B.length);
             }
         }
 
