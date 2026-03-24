@@ -114,8 +114,8 @@ public class VectorExpressionFuzzer {
 
         // Example 1:
         // To start simple, we just call the expression with the same constant arguments
-        // every time. We can still compare the "gold" value optained via interpreter with
-        // later results optained from the compiled method.
+        // every time. We can still compare the "gold" value obtained via interpreter with
+        // later results obtained from the compiled method.
         var template1 = Template.make("type", (VectorType.Vector type) -> {
             // The depth determines roughly how many operations are going to be used in the expression.
             int depth = RANDOM.nextInt(1, 10);
@@ -139,7 +139,7 @@ public class VectorExpressionFuzzer {
                 ).toList(),
                 """
                     } finally {
-                        // Just javac is happy if there are no exceptions to catch.
+                        // Just so javac is happy if there are no exceptions to catch.
                     }
                 }
 

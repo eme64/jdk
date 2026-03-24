@@ -338,7 +338,7 @@ public final class Operations {
         }
     }
 
-    // TODO: consider enforcing precision instead of just blanket non-teterminism
+    // TODO: consider enforcing precision instead of just blanket non-determinism
     private static final List<VOP> VECTOR_OPS = List.of(
         new VOP("ABS",                  VOPType.UNARY,                PRIMITIVE_TYPES),
         new VOP("ACOS",                 VOPType.UNARY,                FLOATING_TYPES,     false), // 1 ulp
