@@ -30,8 +30,6 @@
  * @modules jdk.incubator.vector
  * @modules java.base/jdk.internal.misc
  * @library /test/lib /
- * @compile ../../compiler/lib/ir_framework/TestFramework.java
- * @compile ../../compiler/lib/generators/Generators.java
  * @compile ../../compiler/lib/verify/Verify.java
  * @run driver ${test.main.class} -XX:UseAVX=2
  */

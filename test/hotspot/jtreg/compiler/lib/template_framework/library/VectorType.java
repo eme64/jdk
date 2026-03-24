@@ -177,6 +177,16 @@ public abstract class VectorType implements CodeGenerationDataNameType {
                     ).limit(vectorType.length).toList(),
                     ")"
                 );
+            } else if (r <= 24) {
+                // All true or all false
+                var tf = BOOLEANS.con();
+                return List.of(
+                    "VectorMask.fromValues(", vectorType.speciesName,
+                    Stream.generate(() ->
+                        List.of(", ", tf)
+                    ).limit(vectorType.length).toList(),
+                    ")"
+                );
             } else {
                 return List.of("VectorMask.fromLong(", vectorType.speciesName, ", ", LONGS.con(), ")");
             }

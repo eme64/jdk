@@ -339,6 +339,9 @@ public final class Operations {
     }
 
     // TODO: consider enforcing precision instead of just blanket non-determinism
+    //       We could annotate the exact ulp, and so if some test can use it: great
+    //       But if a test is just interested in determinism, they are still
+    //       non-deterministic.
     private static final List<VOP> VECTOR_OPS = List.of(
         new VOP("ABS",                  VOPType.UNARY,                PRIMITIVE_TYPES),
         new VOP("ACOS",                 VOPType.UNARY,                FLOATING_TYPES,     false), // 1 ulp
@@ -740,6 +743,7 @@ public final class Operations {
                 ops.add(Expression.make(type, "", type, ".fma(", type, ", ", type, ")"));
 
                 // TODO: enforce precision instead of just making it non-deterministic?
+                //       See similar comment at VOP definition.
                 ops.add(Expression.make(type, "", type, ".pow(", type.elementType, ")", WITH_NONDETERMINISTIC_RESULT));
                 ops.add(Expression.make(type, "", type, ".pow(", type, ")", WITH_NONDETERMINISTIC_RESULT));
                 ops.add(Expression.make(type, "", type, ".sqrt()"));
