@@ -23,9 +23,7 @@
 
 package compiler.lib.template_framework.library;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import compiler.lib.template_framework.DataName;
 import compiler.lib.template_framework.Template;
@@ -108,13 +106,6 @@ public interface CodeGenerationDataNameType extends DataName.Type {
      * @return The Float16 type.
      */
     static CodeGenerationDataNameType float16() { return Float16Type.FLOAT16; }
-
-    @SafeVarargs
-    public static <T> List<T> concat(List<? extends T>... lists) {
-        return Arrays.stream(lists)
-                     .flatMap(List::stream)
-                     .collect(Collectors.toList());
-    }
 
     /**
      * List of all {@link PrimitiveType}s.
@@ -236,7 +227,7 @@ public interface CodeGenerationDataNameType extends DataName.Type {
         VectorType.DOUBLE_512
     );
 
-    List<VectorType.Vector> VECTOR_VECTOR_TYPES = concat(
+    List<VectorType.Vector> VECTOR_VECTOR_TYPES = Utils.concat(
         VECTOR_BYTE_VECTOR_TYPES,
         VECTOR_SHORT_VECTOR_TYPES,
         VECTOR_INT_VECTOR_TYPES,
@@ -251,13 +242,13 @@ public interface CodeGenerationDataNameType extends DataName.Type {
     List<VectorType.Shuffle> VECTOR_SHUFFLE_TYPES =
         VECTOR_VECTOR_TYPES.stream().map(t -> t.shuffleType).toList();
 
-    List<VectorType> VECTOR_TYPES = concat(
+    List<VectorType> VECTOR_TYPES = Utils.concat(
         VECTOR_VECTOR_TYPES,
         VECTOR_MASK_TYPES,
         VECTOR_SHUFFLE_TYPES
     );
 
-    List<CodeGenerationDataNameType> ALL_TYPES = concat(
+    List<CodeGenerationDataNameType> ALL_TYPES = Utils.concat(
         SCALAR_NUMERIC_TYPES,
         VECTOR_TYPES
     );

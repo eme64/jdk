@@ -24,11 +24,8 @@
 package compiler.lib.template_framework.library;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static compiler.lib.template_framework.library.PrimitiveType.BYTES;
 import static compiler.lib.template_framework.library.PrimitiveType.SHORTS;
@@ -57,13 +54,6 @@ public final class Operations {
     private static Expression.Info WITH_NONDETERMINISTIC_RESULT = new Expression.Info().withNondeterministicResult();
     private static Expression.Info WITH_ILLEGAL_ARGUMENT_EXCEPTION = new Expression.Info().withExceptions(Set.of("IllegalArgumentException"));
     private static Expression.Info WITH_OUT_OF_BOUNDS_EXCEPTION = new Expression.Info().withExceptions(Set.of("IndexOutOfBoundsException"));
-
-    @SafeVarargs
-    private static List<Expression> concat(List<Expression>... lists) {
-        return Arrays.stream(lists)
-                     .flatMap(List::stream)
-                     .collect(Collectors.toList());
-    }
 
     private static void addComparisonOperations(List<Expression> ops, String operatorName, CodeGenerationDataNameType type) {
         for (String mask : List.of("==", "!=", "<", ">", "<=", ">=")) {
@@ -385,7 +375,7 @@ public final class Operations {
         new VOP("SADD",                 VOPType.BINARY,               INTEGRAL_TYPES),
         new VOP("SIN",                  VOPType.UNARY,                FLOATING_TYPES,     false), // 1 ulp
         new VOP("SINH",                 VOPType.UNARY,                FLOATING_TYPES,     false), // 2.5 ulp
-        new VOP("SQRT",                 VOPType.UNARY,                FLOATING_TYPES,     false), // 1 ulp (closest double value)
+        new VOP("SQRT",                 VOPType.UNARY,                FLOATING_TYPES),
         new VOP("SSUB",                 VOPType.BINARY,               INTEGRAL_TYPES),
         new VOP("SUADD",                VOPType.BINARY,               INTEGRAL_TYPES),
         new VOP("SUB",                  VOPType.BINARY,               PRIMITIVE_TYPES),
@@ -757,8 +747,8 @@ public final class Operations {
             // skip fromArray
             ops.add(Expression.make(type.maskType, "VectorMask.fromLong(" + type.speciesName + ", ", LONGS, ")"));
             for (var type2 : CodeGenerationDataNameType.VECTOR_VECTOR_TYPES) {
-                var mask = type.shuffleType;
-                var mask2 = type2.shuffleType;
+                var mask = type.maskType;
+                var mask2 = type2.maskType;
                 if (type.length == type2.length) {
                     ops.add(Expression.make(mask, "((" + mask.name() + ")", mask2 , ".cast(" + type.speciesName + "))"));
                 }
@@ -834,14 +824,14 @@ public final class Operations {
 
     public static final List<Expression> FLOAT16_OPERATIONS = generateFloat16Operations();
 
-    public static final List<Expression> SCALAR_NUMERIC_OPERATIONS = concat(
+    public static final List<Expression> SCALAR_NUMERIC_OPERATIONS = Utils.concat(
         PRIMITIVE_OPERATIONS,
         FLOAT16_OPERATIONS
     );
 
     public static final List<Expression> VECTOR_OPERATIONS = generateVectorOperations();
 
-    public static final List<Expression> ALL_OPERATIONS = concat(
+    public static final List<Expression> ALL_OPERATIONS = Utils.concat(
         SCALAR_NUMERIC_OPERATIONS,
         VECTOR_OPERATIONS
     );
