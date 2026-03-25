@@ -333,7 +333,7 @@ public class Expression {
     }
 
     /**
-     * Creates a new Expression with 4 arguments.
+     * Creates a new Expression with 5 arguments.
      *
      * @param returnType The return type of the {@link Expression}.
      * @param s0 The first string, to be placed before {@code t0}.
@@ -365,7 +365,7 @@ public class Expression {
     }
 
     /**
-     * Creates a new Expression with 4 arguments.
+     * Creates a new Expression with 5 arguments.
      *
      * @param returnType The return type of the {@link Expression}.
      * @param s0 The first string, to be placed before {@code t0}.

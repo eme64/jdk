@@ -75,7 +75,7 @@ import static compiler.lib.template_framework.library.CodeGenerationDataNameType
 // - Lower the CompileTaskTimeout, if possible. It is chosen conservatively (rather high) for now.
 // - I also had to exclude the compilation of the following method. It would lead to compilation
 //   timeouts and even compilation memory limit reached. It is a really large method, so I'm not
-//   sure if that is to be expected, or if we could still imprve the situation.
+//   sure if that is to be expected, or if we could still improve the situation.
 //   compiler.lib.template_framework.library.Operations::generateVectorOperations
 public class ExpressionFuzzer {
     private static final Random RANDOM = Utils.getRandomInstance();

@@ -629,7 +629,7 @@ public final class Operations {
             ops.add(Expression.make(type, "", type, ".div(", type.elementType, ")", WITH_ARITHMETIC_EXCEPTION));
             ops.add(Expression.make(type, "", type, ".div(", type.elementType, ", ", type.maskType, ")", WITH_ARITHMETIC_EXCEPTION));
             ops.add(Expression.make(type, "", type, ".div(", type, ")", WITH_ARITHMETIC_EXCEPTION));
-            ops.add(Expression.make(type, "", type, ".div(", type.elementType, ", ", type.maskType, ")", WITH_ARITHMETIC_EXCEPTION));
+            ops.add(Expression.make(type, "", type, ".div(", type, ", ", type.maskType, ")", WITH_ARITHMETIC_EXCEPTION));
 
             ops.add(Expression.make(type.maskType, "", type, ".eq(", type.elementType, ")"));
             ops.add(Expression.make(type.maskType, "", type, ".eq(", type, ")"));
