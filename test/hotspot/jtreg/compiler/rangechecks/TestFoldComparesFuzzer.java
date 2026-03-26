@@ -135,6 +135,20 @@ public class TestFoldComparesFuzzer {
                 case NE -> EQ;
             };
         }
+
+        static Comparator random() {
+            return values()[RANDOM.nextInt(values().length)];
+        }
+    }
+
+    record Comparison(String lhs, Comparator cmp, String rhs) {
+        public String toString() {
+            return "( " + lhs + " "+ cmp.getToken() + " " + rhs + ")";
+        }
+
+        Comparison permuteRandom() {
+            return RANDOM.nextBoolean() ? this : new Comparison(rhs, cmp.negate(), lhs);
+        }
     }
 
     public static TemplateToken generateTest() {
@@ -145,6 +159,9 @@ public class TestFoldComparesFuzzer {
         final int A_LO = gen.next();
         final int B_HI = gen.next();
         final int B_LO = gen.next();
+
+        Comparison c1 = new Comparison("n", Comparator.random(), "a").permuteRandom();
+        Comparison c2 = new Comparison("n", Comparator.random(), "b").permuteRandom();
 
         // TODO: brainstorming
         //
@@ -161,6 +178,8 @@ public class TestFoldComparesFuzzer {
             let("A_LO", A_LO),
             let("B_HI", B_HI),
             let("B_LO", B_LO),
+            let("c1", c1),
+            let("c2", c2),
             """
             static boolean #methodName(int n, int a, int b) {
                 //n = Math.min(#N_HI, Math.max(#N_LO, n));
