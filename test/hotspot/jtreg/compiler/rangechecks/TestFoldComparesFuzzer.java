@@ -59,6 +59,7 @@ import compiler.lib.template_framework.library.TestFrameworkClass;
  */
 public class TestFoldComparesFuzzer {
     private static final Random RANDOM = Utils.getRandomInstance();
+    private static final RestrictableGenerator<Integer> INT_GEN = Generators.G.ints();
 
     public static void main(String[] args) {
         // Create a new CompileFramework instance.
@@ -151,47 +152,50 @@ public class TestFoldComparesFuzzer {
         }
     }
 
-    public static TemplateToken generateTest() {
-        RestrictableGenerator<Integer> gen = Generators.G.ints();
-        final int N_HI = gen.next();
-        final int N_LO = gen.next();
-        final int A_HI = gen.next();
-        final int A_LO = gen.next();
-        final int B_HI = gen.next();
-        final int B_LO = gen.next();
+    // TODO: brainstorming
+    //
+    // - All permutations of tests. All comparisons.
+    // - Cases where we are always in/out / mixed.
+    // - Cases with array length.
+    // - Cases with switch
+    // - limits: constant, range, array.length
+    // - type: int and long
+    interface TestMethodGenerator {
+        Template.OneArg<String> getTemplate();
+    }
 
-        Comparison c1 = new Comparison("n", Comparator.random(), "a").permuteRandom();
-        Comparison c2 = new Comparison("n", Comparator.random(), "b").permuteRandom();
+    static class TestMethodGeneratorConst implements TestMethodGenerator {
+        private final int n_hi = INT_GEN.next();
+        private final int n_lo = INT_GEN.next();
+        private final int a_hi = INT_GEN.next();
+        private final int a_lo = INT_GEN.next();
+        private final int b_hi = INT_GEN.next();
+        private final int b_lo = INT_GEN.next();
 
-        // TODO: brainstorming
-        //
-        // - All permutations of tests. All comparisons.
-        // - Cases where we are always in/out / mixed.
-        // - Cases with array length.
-        // - Cases with switch
-        // - limits: constant, range, array.length
-        // - type: int and long
-        var testMethodTemplate = Template.make("methodName", (String methodName) -> scope(
-            let("N_HI", N_HI),
-            let("N_LO", N_LO),
-            let("A_HI", A_HI),
-            let("A_LO", A_LO),
-            let("B_HI", B_HI),
-            let("B_LO", B_LO),
+        private final Comparison c1 = new Comparison("n", Comparator.random(), "a").permuteRandom();
+        private final Comparison c2 = new Comparison("n", Comparator.random(), "b").permuteRandom();
+
+        private final Template.OneArg<String> template = Template.make("methodName", (String methodName) -> scope(
+            let("n_hi", n_hi),
+            let("n_lo", n_lo),
+            let("a_hi", a_hi),
+            let("a_lo", a_lo),
+            let("b_hi", b_hi),
+            let("b_lo", b_lo),
             let("c1", c1),
             let("c2", c2),
             """
             static boolean #methodName(int n, int a, int b) {
-                //n = Math.min(#N_HI, Math.max(#N_LO, n));
-                //a = Math.min(#A_HI, Math.max(#A_LO, a));
-                //b = Math.min(#B_HI, Math.max(#B_LO, b));
+                //n = Math.min(#n_hi, Math.max(#n_lo, n));
+                //a = Math.min(#a_hi, Math.max(#a_lo, a));
+                //b = Math.min(#b_hi, Math.max(#b_lo, b));
 
                 if (a > b) {
-                    a = #A_LO; //0;
-                    b = #B_LO; //1;
+                    a = #a_lo; // 0;
+                    b = #b_lo; // 1;
                 } else {
-                    a = #A_HI; //Integer.MIN_VALUE;
-                    b = #B_HI; //Integer.MAX_VALUE;
+                    a = #a_hi; // Integer.MIN_VALUE;
+                    b = #b_hi; // Integer.MAX_VALUE;
                 }
 
                 if (n < a || n > b) {
@@ -201,6 +205,12 @@ public class TestFoldComparesFuzzer {
             }
             """
         ));
+
+        public Template.OneArg<String> getTemplate() { return template; }
+    }
+
+    public static TemplateToken generateTest() {
+        Template.OneArg<String> testMethodTemplate = new TestMethodGeneratorConst().getTemplate();
 
         // TODO: Xcomp or not?
         var testTemplate = Template.make(() -> scope(
