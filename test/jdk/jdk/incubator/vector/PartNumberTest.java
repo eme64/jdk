@@ -134,6 +134,11 @@ public class PartNumberTest {
         expectSuccess(() -> { return f2.reinterpretShape(DoubleVector.SPECIES_512, 0); });
         expectAIOOBE( () -> { return f2.reinterpretShape(DoubleVector.SPECIES_512, 1); }, "bad part number 1" + msg);
 
+        expectAIOOBE( () -> { return f2.unslice(1, f2, -1); }, "bad part number -1 for slice operation");
+        expectSuccess(() -> { return f2.unslice(1, f2, 0); });
+        expectSuccess(() -> { return f2.unslice(1, f2, 1); });
+        expectAIOOBE( () -> { return f2.unslice(1, f2, 2); }, "bad part number 2 for slice operation");
+
         var i8 = IntVector.broadcast(IntVector.SPECIES_256, 42);
         msg = " should be in [0..7], output selection with MS=8; logical: conversion lanewise expanding by ML=2; physical: contraction by MP=1/4; Species[int, 8, S_256_BIT] -> Species[long, 1, S_64_BIT].";
         expectAIOOBE( () -> { return i8.convertShape(VectorOperators.I2L, LongVector.SPECIES_64, -1); }, "bad part number -1" + msg);

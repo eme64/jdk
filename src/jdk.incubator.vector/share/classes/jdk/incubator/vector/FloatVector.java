@@ -2234,6 +2234,9 @@ public abstract class FloatVector extends AbstractVector<Float> {
         FloatVector that = (FloatVector) w;
         that.check(this);
         Objects.checkIndex(origin, length() + 1);
+        if ((-2 & part) != 0) {
+            throw wrongPartForSlice(part);
+        }
         IntVector iotaVector = (IntVector) iotaShuffle().toBitsVector();
         IntVector filter = IntVector.broadcast((IntVector.IntSpecies) vspecies().asIntegral(), (int)origin);
         VectorMask<Float> blendMask = iotaVector.compare((part == 0) ? VectorOperators.GE : VectorOperators.LT, filter).cast(vspecies());
