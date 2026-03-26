@@ -201,6 +201,11 @@ public class PartNumberTest {
         expectSuccess(() -> { return i8.reinterpretShape(LongVector.SPECIES_512, 0); });
         expectAIOOBE( () -> { return i8.reinterpretShape(LongVector.SPECIES_512, 1); }, "bad part number 1" + msg);
 
+        expectAIOOBE( () -> { return i8.unslice(1, i8, -1); }, "bad part number -1 for slice operation");
+        expectSuccess(() -> { return i8.unslice(1, i8, 0); });
+        expectSuccess(() -> { return i8.unslice(1, i8, 1); });
+        expectAIOOBE( () -> { return i8.unslice(1, i8, 2); }, "bad part number 2 for slice operation");
+
         var l4 = LongVector.broadcast(LongVector.SPECIES_256, 42);
         msg = " should be in [0..1], output selection with MS=2; logical: conversion lanewise contracting by ML=1/2; physical: contraction by MP=1/4; Species[long, 4, S_256_BIT] -> Species[int, 2, S_64_BIT].";
         expectAIOOBE( () -> { return l4.convertShape(VectorOperators.L2I, IntVector.SPECIES_64, -1); }, "bad part number -1" + msg);
@@ -256,6 +261,11 @@ public class PartNumberTest {
         expectSuccess(() -> { return l4.reinterpretShape(IntVector.SPECIES_512, -1); });
         expectSuccess(() -> { return l4.reinterpretShape(IntVector.SPECIES_512, 0); });
         expectAIOOBE( () -> { return l4.reinterpretShape(IntVector.SPECIES_512, 1); }, "bad part number 1" + msg);
+
+        expectAIOOBE( () -> { return l4.unslice(1, l4, -1); }, "bad part number -1 for slice operation");
+        expectSuccess(() -> { return l4.unslice(1, l4, 0); });
+        expectSuccess(() -> { return l4.unslice(1, l4, 1); });
+        expectAIOOBE( () -> { return l4.unslice(1, l4, 2); }, "bad part number 2 for slice operation");
     }
 
     public static List<VectorSpecies> generateSpecies() {
@@ -304,6 +314,7 @@ public class PartNumberTest {
                     }
                     testReinterpretShape(s1, s2, part);
                 }
+                testUnslice(s1, part);
             }
         }
     }
@@ -393,6 +404,20 @@ public class PartNumberTest {
         } else {
             String msg = String.format("bad part number %d should be %s, %s; logical: %s; physical: %s; %s -> %s.",
                                        part, partRange, outputOp, logicalOp, physicalOp, s1, s2);
+            expectAIOOBE(op, msg);
+        }
+    }
+
+    public static void testUnslice(VectorSpecies s1, int part) {
+        TestMethod op = () -> {
+            var v = s1.zero();
+            return v.unslice(1, v, part);
+        };
+
+        if (0 <= part && part <= 1) {
+            expectSuccess(op);
+        } else {
+            String msg = String.format("bad part number %d for slice operation", part);
             expectAIOOBE(op, msg);
         }
     }
