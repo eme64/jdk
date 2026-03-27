@@ -61,7 +61,9 @@ import compiler.lib.template_framework.library.TestFrameworkClass;
  * add more cases:
  * - Cases with array length, so a null-check is added between
  *   the two conditions, see test_array_length_and_null_check_1
- * - Cases with switch
+ * - TODO: Cases with switch
+ *         See: JavaTokenizer::isSpecial
+ *
  * - Extend to long
  * - Add IR rules - Currently difficult because not all cases are
  *   consistently optimized, not all permutations are covered.

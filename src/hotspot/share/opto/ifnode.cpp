@@ -943,12 +943,12 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
   BoolTest::mask hi_test = this_bool->_test._test;
   BoolTest::mask cond = hi_test;
 
-  // Ok, we could get the ge, gt. But they are rare. Probably they get canonicalized away...
   assert(lo_test == BoolTest::lt ||
          lo_test == BoolTest::le ||
-         lo_test == BoolTest::gt ||  // rare, found with testY
-         lo_test == BoolTest::ne, "lo test options");
-  assert(hi_test == BoolTest::lt || hi_test == BoolTest::le, "hi test options");
+         lo_test == BoolTest::gt ||  // rare
+         lo_test == BoolTest::ge ||  // rare
+         lo_test == BoolTest::ne, "lo test options: %d", lo_test);
+  assert(hi_test == BoolTest::lt || hi_test == BoolTest::le, "hi test options: %d", hi_test);
 
   // convert:
   //
@@ -1140,14 +1140,11 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
         // QED.
         lo = igvn->transform(new AddINode(lo, igvn->intcon(1)));
       } else {
+        assert(lo_test == BoolTest::lt || lo_test == BoolTest::ge, "lo_test = %d", lo_test);
         // (CASE *2a)
-
-        // lo=lt,hi=lt    x < lo  || !(x < hi) -> testX_lohi_ltlt: i < -100_000 || i >= 100_000
-        //                                                 ->   i + 100_000 <u  200_000)
-        //                                                 -> !(i + 100_000 >=u 200_000)
-        assert(lo_test == BoolTest::lt, "find hi=lt, lo=ge");
-        // lo=ge,hi=lt  !(x >= lo) || !(x < hi) -> ????
-
+        // lo=lt,hi=lt    x < lo   || !(x < hi)
+        // lo=ge,hi=lt  !(x >= lo) || !(x < hi)
+        //
         // Simplified version:
         //   x < lo || x >= hi                      (BEFORE)
         //
@@ -1194,13 +1191,9 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
     } else if (hi_test == BoolTest::le) {
       if (lo_test == BoolTest::ge || lo_test == BoolTest::lt) {
         // (CASE *3a)
-
-        // lo=lt,hi=le:    x <  lo  || !(x <= hi) -> testX_lohi_ltle: i < -100_000 || i > 100_000
-        //                                                    ->   i + 100_000 <u  200_001
-        //                                                    -> !(i + 100_000 >=u 200_001)
-        assert(lo_test == BoolTest::lt, "catch ge case");
-        // lo=ge,hi=le:  !(x >= lo) || !(x <= hi) -> ????
-
+        // lo=lt,hi=le:    x <  lo  || !(x <= hi)
+        // lo=ge,hi=le:  !(x >= lo) || !(x <= hi)
+        //
         // Simplified version:
         //   x < lo || x > hi                    (BEFORE)
         //
@@ -1636,14 +1629,9 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
   Node* newcmp = igvn->transform(new CmpUNode(adjusted_val, adjusted_lim));
   Node* newbool = igvn->transform(new BoolNode(newcmp, cond));
 
-  //tty->print_cr("newbool:");
-  //newbool->dump_bfs(4,0,"#");
-
   igvn->replace_input_of(dom_iff, 1, igvn->intcon(proj->_con));
   igvn->replace_input_of(this, 1, newbool);
 
-  //tty->print_cr("Success!");
-  assert(!trigger, "trigger");
   return true;
 }
 
