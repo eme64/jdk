@@ -654,6 +654,12 @@ Node* IfNode::up_one_dom(Node *curr, bool linear_only) {
 
 //------------------------------filtered_int_type--------------------------------
 // Return a possibly more restrictive type for val based on condition control flow for an if
+//
+// Important: we only parse if val is on the lhs. This is a limitation, but it makes
+//            optimizations simpler. We rely on canonicalization to get us to this
+//            shape, which works well for comparisions with constants, as they are
+//            canonicalized to the rhs. This may not happen with variables, and so
+//            the optimization may not work for those cases, when val stays on the rhs.
 const TypeInt* IfNode::filtered_int_type(PhaseGVN* gvn, Node* val, Node* if_proj) {
   assert(if_proj &&
          (if_proj->Opcode() == Op_IfTrue || if_proj->Opcode() == Op_IfFalse), "expecting an if projection");
@@ -663,12 +669,14 @@ const TypeInt* IfNode::filtered_int_type(PhaseGVN* gvn, Node* val, Node* if_proj
       BoolNode* bol = iff->in(1)->as_Bool();
       if (bol->in(1) && bol->in(1)->is_Cmp()) {
         const CmpNode* cmp  = bol->in(1)->as_Cmp();
+        // Val is always the lhs of the comparision: val <test> cmp2
         if (cmp->in(1) == val) {
           assert(cmp->Opcode() == Op_CmpI, "signed comparison required");
           const TypeInt* cmp2_t = gvn->type(cmp->in(2))->isa_int();
           if (cmp2_t != nullptr) {
             jint lo = cmp2_t->_lo;
             jint hi = cmp2_t->_hi;
+            // Negate the test if we are on the false branch.
             BoolTest::mask msk = if_proj->Opcode() == Op_IfTrue ? bol->_test._test : bol->_test.negate();
             switch (msk) {
             case BoolTest::ne: {
@@ -941,25 +949,44 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
 
   // convert:
   //
-  //          dom_bool = x {<,<=,>,>=} a
+  //          dom_bool = n {<,<=,>,>=} a
   //                           / \
-  //     proj = {True,False}  /   \ otherproj = {False,True}
+  //     proj = {True,False}  /   \ otherproj = {False,True} -> n in lo_type
   //                         /
-  //        this_bool = x {<,<=} b
+  //        this_bool = n {<,<=} b
   //                       / \
-  //  fail = {True,False} /   \ success = {False,True}
+  //  fail = {True,False} /   \ success = {False,True} -> n in hi_type
   //                     /
+  //
+  // Example:
+  //   if n < 0:   otherproj (lo_type: min_int..-1)
+  //   // proj
+  //   if n > 10:  success   (hi_type: 11..max_int)
+  //   // fail
+  //
+  // Note: otherproj and success both lead to the same Region, or
+  //       some uncommon trap.
+  //       TODO: check if unc could lead to different places! Maybe op in between?
   //
   // (Second test guaranteed canonicalized, first one may not have
   // been canonicalized yet)
   //
   // into:
   //
-  // cond = (x - lo) {<u,<=u,>u,>=u} adjusted_lim
+  // cond = (n - lo) {<u,<=u,>u,>=u} adjusted_lim
   //                       / \
-  //                 fail /   \ success
+  //                 fail /   \ success (subsumes otherproj)
   //                     /
   //
+  // In our Example, we hack the first condition to "false", replace
+  // the second condition with the CmpU:
+  //   if false:   otherproj <- folds away
+  //   // proj
+  //   if n u> 10: success   <- takes on both paths
+  //   // fail
+  //
+  // TODO: does this not mean we might hit the null-check first, and not
+  // the first condition first?
 
   // In the proofs below, we need some basic Lemmas to deal with integer
   // signed and unsigned arithmetic.
@@ -1525,35 +1552,29 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
     // this test was canonicalized
     assert(this_bool->_test.is_less() && !fail->_con, "incorrect test");
   } else {
-    //tty->print_cr("ELSE case.");
+    // We could not do any CmpU folding. But maybe "fail" can never be
+    // reached, and we can fold away the second CmpI.
+    // Example:
+    //   if n < 5: otherproj
+    //   // proj (failtype: 5..max_int)
+    //   if n > 1: success <- can never fail
+    //   // fail (type2: min_int..1)
+    // If we take the first CmpI to proj, we restrict n to:
     const TypeInt* failtype = filtered_int_type(igvn, n, proj);
-    //tty->print_cr("checking for failtype overlap:");
     if (failtype != nullptr) {
-      //tty->print("lo failtype: "); failtype->dump_on(tty); tty->cr();
+      // And then from proj, we take the second branch to "fail",
+      // where the second CmpI restricts n to:
       const TypeInt* type2 = filtered_int_type(igvn, n, fail);
       if (type2 != nullptr) {
-        //tty->print("hi type2:    "); type2->dump_on(tty); tty->cr();
+        // Is there any intersection left for the two restrictions?
         if (failtype->filter(type2) == Type::TOP) {
-          // tty->print("join:        "); failtype->dump_on(tty); tty->cr();
-          // previous if determines the result of this if so
-          // replace Bool with constant
+          // No, the intersection is empty. Let us fold the second
+          // CmpI away from "fail", and towards "success".
           igvn->replace_input_of(this, 1, igvn->intcon(success->_con));
-          //tty->print_cr("Previous covers this - replace this with constant.");
-          //assert(false, "check out this case");
-          //
-          // This seems ok.
-          // Example: testZ_3b, and maybe also testZ_3 if we chose the alternative solution.
-          // This is to catch cases like:
-          //   i < 0 || i > -2
-          // This condition is always true. The intersection of the cases:
-          //   i >= 0
-          //   i <= -2
-          // is empty. So we can constant fold the path.
           return true;
         }
       }
     }
-    //tty->print_cr("Fails in ELSE case.");
     return false;
   }
 
