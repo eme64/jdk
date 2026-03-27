@@ -676,8 +676,12 @@ const TypeInt* IfNode::filtered_int_type(PhaseGVN* gvn, Node* val, Node* if_proj
               const TypeInt* val_t = gvn->type(val)->isa_int();
               if (val_t != nullptr && !val_t->singleton() && cmp2_t->is_con()) {
                 if (val_t->_lo == lo) {
+                  // Condition leading to if_proj: val != val->lo
+                  //   val in [val->lo + 1, val->hi]
                   return TypeInt::make(val_t->_lo + 1, val_t->_hi, val_t->_widen);
                 } else if (val_t->_hi == hi) {
+                  // Condition leading to if_proj: val != val->hi
+                  //   val in [val->lo, val->hi - 1]
                   return TypeInt::make(val_t->_lo, val_t->_hi - 1, val_t->_widen);
                 }
               }
@@ -685,7 +689,8 @@ const TypeInt* IfNode::filtered_int_type(PhaseGVN* gvn, Node* val, Node* if_proj
               return nullptr;
             }
             case BoolTest::eq:
-              assert(false, "not possible?");
+              // Condition leading to if_proj: val == cmp2
+              //   val in cmp2_t
               return cmp2_t;
             case BoolTest::lt:
               // Condition leading to if_proj: val < cmp2
@@ -711,12 +716,11 @@ const TypeInt* IfNode::filtered_int_type(PhaseGVN* gvn, Node* val, Node* if_proj
             case BoolTest::ge:
               // Condition leading to if_proj: val >= cmp2
               //   val in [cmp2->_lo .. max_int]
-              // lo unchanged
               hi = TypeInt::INT->_hi;
               break;
             default:
-              assert(false, "we would return type of cmp2, not val, that would be bad");
-              break;
+              assert(false, "impossible case");
+              return nullptr;
             }
             const TypeInt* rtn_t = TypeInt::make(lo, hi, cmp2_t->_widen);
             return rtn_t;
