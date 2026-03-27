@@ -664,6 +664,7 @@ const TypeInt* IfNode::filtered_int_type(PhaseGVN* gvn, Node* val, Node* if_proj
       if (bol->in(1) && bol->in(1)->is_Cmp()) {
         const CmpNode* cmp  = bol->in(1)->as_Cmp();
         if (cmp->in(1) == val) {
+          assert(cmp->Opcode() == Op_CmpI, "signed comparison required");
           const TypeInt* cmp2_t = gvn->type(cmp->in(2))->isa_int();
           if (cmp2_t != nullptr) {
             jint lo = cmp2_t->_lo;
@@ -684,27 +685,37 @@ const TypeInt* IfNode::filtered_int_type(PhaseGVN* gvn, Node* val, Node* if_proj
               return nullptr;
             }
             case BoolTest::eq:
+              assert(false, "not possible?");
               return cmp2_t;
             case BoolTest::lt:
+              // Condition leading to if_proj: val < cmp2
+              //   val in [min_int .. max(min_int, cmp2->_hi - 1)]
               lo = TypeInt::INT->_lo;
               if (hi != min_jint) {
                 hi = hi - 1;
               }
               break;
             case BoolTest::le:
+              // Condition leading to if_proj: val <= cmp2
+              //   val in [min_int .. cmp2->_hi]
               lo = TypeInt::INT->_lo;
               break;
             case BoolTest::gt:
+              // Condition leading to if_proj: val > cmp2
+              //   val in [min(cmp2->_lo + 1, max_int) .. max_int]
               if (lo != max_jint) {
                 lo = lo + 1;
               }
               hi = TypeInt::INT->_hi;
               break;
             case BoolTest::ge:
+              // Condition leading to if_proj: val >= cmp2
+              //   val in [cmp2->_lo .. max_int]
               // lo unchanged
               hi = TypeInt::INT->_hi;
               break;
             default:
+              assert(false, "we would return type of cmp2, not val, that would be bad");
               break;
             }
             const TypeInt* rtn_t = TypeInt::make(lo, hi, cmp2_t->_widen);
@@ -912,9 +923,28 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
   const TypeInt* lo_type = IfNode::filtered_int_type(igvn, n, otherproj);
   const TypeInt* hi_type = IfNode::filtered_int_type(igvn, n, success);
 
+  //if (lo_type != nullptr && hi_type != nullptr) {
+  //  tty->print_cr("IfNode::fold_compares_helper:");
+  //  tty->print("lo_type: "); lo_type->dump_on(tty); tty->cr();
+  //  tty->print("hi_type: "); hi_type->dump_on(tty); tty->cr();
+
+  //  tty->print_cr("lo / dom_bool:");
+  //  dom_bool->dump_bfs(2,0,"#");
+  //  tty->print_cr("hi / this_bool:");
+  //  tty->print_cr("expected to always be le, lt, ge, gt (see cmpi_folds)");
+  //  this_bool->dump_bfs(2,0,"#");
+  //}
+
   BoolTest::mask lo_test = dom_bool->_test._test;
   BoolTest::mask hi_test = this_bool->_test._test;
   BoolTest::mask cond = hi_test;
+
+  // Ok, we could get the ge, gt. But they are rare. Probably they get canonicalized away...
+  assert(lo_test == BoolTest::lt ||
+         lo_test == BoolTest::le ||
+         lo_test == BoolTest::gt ||  // rare, found with testY
+         lo_test == BoolTest::ne, "lo test options");
+  assert(hi_test == BoolTest::lt || hi_test == BoolTest::le, "hi test options");
 
   // convert:
   //
@@ -938,6 +968,56 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
   //                     /
   //
 
+  // In the proofs below, we need some basic Lemmas to deal with integer
+  // signed and unsigned arithmetic.
+  //
+  // Lemma1:
+  //   Let a and b be in [min_int .. max_int].
+  //   If a >=s b, then:
+  //     U(a - b) = a - b
+  //
+  //   Proof:
+  //     a >= b
+  //     -> a - b >= 0
+  //
+  //     a <= max_int
+  //     b >= min_int
+  //     -> a - b <= max_int - min_int = 2^32-1
+  //
+  //     0 <= a - b <= 2^32-1
+  //     -> cast to unsigned has no overflow
+  //     -> U(a - b) = a - b
+  //
+  // Lemma2:
+  //   Let a and b be in [min_int .. max_int].
+  //   If a <s b, then:
+  //     U(a - b) = a - b + 2^32
+  //
+  //   Proof:
+  //     a < b
+  //     -> a - b < 0
+  //
+  //     a >= min_int
+  //     b <= max_int
+  //     -> a - b >= min_int - max_int = 2^32-1
+  //
+  //     2^32-1 <= a - b < 0
+  //     -> cast to unsigned leads to exactly one overflow
+  //     -> U(a - b) = a - b + 2^32
+  //
+  // Lemma3:
+  //   Let a and b be in [min_int .. max_int].
+  //     a + 2^32 > b
+  //
+  //   Proof:
+  //     Using a >= min_int, and b <= max_int:
+  //     a + 2^32 <= min_int + 2^32
+  //               = max_int + 1
+  //              <= b       + 1
+  //              <  b
+
+  bool trigger = false;
+
   // Figure out which of the two tests sets the upper bound and which
   // sets the lower bound if any.
   Node* adjusted_lim = nullptr;
@@ -945,6 +1025,8 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
       hi_type->_hi == max_jint && lo_type->_lo == min_jint && lo_test != BoolTest::ne) {
     assert((dom_bool->_test.is_less() && !proj->_con) ||
            (dom_bool->_test.is_greater() && proj->_con), "incorrect test");
+
+    //tty->print_cr("lo < hi");
 
     // this_bool = <
     //   dom_bool = >= (proj = True) or dom_bool = < (proj = False)
@@ -958,6 +1040,31 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
     //     x in [a, b] on the fail (= True) projection, b+1 > a-1:
     //     lo = a, hi = b, adjusted_lim = b-a+1, cond = <u
     //     lo = a, hi = b, adjusted_lim = b-a, cond = <=u doesn't work because b = a - 1 is possible, then b-a = -1
+    //     ? This is the problematic case. Argumentation FOR solution is not really present.
+    //     ? There is only an argument against an alternative solution:
+    //     ?   x - lo <=u hi - lo
+    //     ? The argument against it seems to be that we could have hi = lo - 1.
+    //     ? And then hi - lo overflows, which leads to a wrong result.
+    //     ?
+    //     ? Review email thread:
+    //     ? https://mail.openjdk.org/pipermail/hotspot-compiler-dev/2015-June/018181.html
+    //     ?   C2 folds:
+    //     ?   if (i <= a || i > b) {
+    //     ?   as:
+    //     ?   if (i - a - 1 >u b - a - 1) {
+    //     ?   a == b is allowed and the test becomes then if (i-1 >u -1) { which is never true.
+    //     ?   Same is true with if (i > b || i <= a) {
+    //     ?   The fix folds it as:
+    //     ?   if (i - a - 1 >=u b - a) {
+    //     ?   which is always true for a == b
+    //     ?
+    //     ? Review went through without many questions, sadly.
+    //     ?
+    //     ? As we can see in (CASE *3a), this "fix" removed the underflow
+    //     ? issue, but as a consequence introduced an overflow problem.
+    //     ? That's what you get when you just fix individual cases rather
+    //     ? than writing proofs about all cases :(
+    //     ?
     //   dom_bool = > (proj = True) or dom_bool = <= (proj = False)
     //     x in ]a, b] on the fail (= True) projection b+1 > a:
     //     lo = a+1, hi = b, adjusted_lim = b-a, cond = <u
@@ -965,14 +1072,352 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
 
     if (hi_test == BoolTest::lt) {
       if (lo_test == BoolTest::gt || lo_test == BoolTest::le) {
+        // (CASE *1a)
+
+        // lo=le,hi=lt:     x <= lo  || !(x < hi) -> testX_lohi_lelt: i <= -100_000 || i >= 100_000
+        //                                                       ->   i + 99_999 <u  199_999
+        //                                                       -> !(i + 99_999 >=u 199_999)
+        //
+        // lo=gt,hi=lt:   !(x >  lo) || !(x < hi) -> testY with StressIGVN
+        //                                                            !(i > 0) || !(i < 4)
+        //                                                         ->   i + -1 <u  3
+        //                                                         -> !(i + -1 >=u 3)
+
+        // Simplified version:
+        //   x <= lo || x >= hi                        (BEFORE)
+        //
+        // Transformed to:
+        //   x -  lo - 1  >=u hi -  lo - 1             (AFTER)
+        // Equivalent to:
+        //   x - (lo + 1) >=u hi - (lo + 1)
+        //
+        // Proof:
+        //   From IfNode::filtered_int_type, we get:
+        //     lo_type = [min_int .. lo->_hi]
+        //     -> lo_type->_hi = lo->_hi
+        //     hi_type = [hi->_lo .. max_int]
+        //     -> hi_type->_lo = hi->_lo
+        //   Given check from above:
+        //     lo_type->_hi < hi_type->_lo
+        //     -> lo->_hi < hi->_lo
+        //     -> lo < hi                              (LO-HI)
+        //
+        //   Case x <= lo:
+        //     (BEFORE) is always true, show (AFTER) is always true.
+        //     Since lo < hi (LO-HI), S(lo+1) = lo+1 (no overflow):
+        //     -> lo+1 <= hi
+        //     -> x    <  lo+1
+        //     U(x - (lo + 1))          >=  U(hi - (lo + 1))
+        //     -- Lemma2 (x < lo+1) --      -- Lemma1 (lo+1 <= hi) --
+        //       x - (lo + 1) + 2^32    >=    hi - (lo + 1)
+        //       x            + 2^32    >=    hi
+        //     Always true by Lemma3.
+        //
+        //   Case lo < x < hi:
+        //     (BEFORE) is always false, show (AFTER) is always false.
+        //     Since lo < hi (LO-HI), S(lo+1) = lo+1 (no overflow):
+        //     -> lo+1 <= hi
+        //     -> x    >= lo+1
+        //     U(x - (lo + 1))          >=  U(hi - (lo + 1))
+        //     -- Lemma1 (x >= lo+1) --     -- Lemma1 (lo+1 <= hi) --
+        //       x - (lo + 1)           >=    hi - (lo + 1)
+        //       x                      >=    hi
+        //     Contradicts x <s hi, so always false.
+        //
+        //   Case x >= hi:
+        //     (BEFORE) is always true, show (AFTER) is always true.
+        //     Since lo < hi (LO-HI), S(lo+1) = lo+1 (no overflow):
+        //     -> lo+1 <= hi
+        //     U(x - (lo + 1))          >=  U(hi - (lo + 1))
+        //     -- Lemma1 (x >= lo+1) --     -- Lemma1 (lo+1 <= hi) --
+        //       x - (lo + 1)           >=    hi - (lo + 1)
+        //       x                      >=    hi
+        //     Equivalent to case assumption, so always true.
+        // QED.
         lo = igvn->transform(new AddINode(lo, igvn->intcon(1)));
+      } else {
+        // (CASE *2a)
+
+        // lo=lt,hi=lt    x < lo  || !(x < hi) -> testX_lohi_ltlt: i < -100_000 || i >= 100_000
+        //                                                 ->   i + 100_000 <u  200_000)
+        //                                                 -> !(i + 100_000 >=u 200_000)
+        assert(lo_test == BoolTest::lt, "find hi=lt, lo=ge");
+        // lo=ge,hi=lt  !(x >= lo) || !(x < hi) -> ????
+
+        // Simplified version:
+        //   x < lo || x >= hi                      (BEFORE)
+        //
+        // Transformed to:
+        //   x - lo >=u hi - lo                     (AFTER)
+        //
+        // Proof:
+        //   From IfNode::filtered_int_type, we get:
+        //     lo_type = [min_int .. max(min_int, lo->_hi - 1)]
+        //     -> lo_type->_hi >= lo->_hi - 1
+        //     hi_type = [hi->_lo .. max_int]
+        //     -> hi_type->_lo = hi->_lo
+        //   Given check from above:
+        //     lo_type->_hi < hi_type->_lo
+        //     -> lo->_hi - 1 <  hi->_lo
+        //     -> lo->_hi     <= hi->_lo
+        //     -> lo <= hi                             (LO-HI)
+        //
+        //   Case x < lo:
+        //     (BEFORE) is always true, show (AFTER) is always true.
+        //     U(x - lo)               >=  U(hi - lo)
+        //     -- Lemma2 (x < lo) --       -- Lemma1 (lo <= hi) --
+        //       x - lo + 2^32         >=    hi - lo
+        //       x      + 2^32         >=    hi
+        //     Always true by Lemma3.
+        //
+        //   Case lo <=s x <s hi:
+        //     (BEFORE) is always false, show (AFTER) is always false.
+        //     U(x - lo)               >=  U(hi - lo)
+        //     -- Lemma1 (x >=lo) --       -- Lemma1 (lo <= hi) --
+        //       x - lo                >=    hi - lo
+        //       x                     >=    hi
+        //     Contradicts our case assumption x <s hi, so always false.
+        //
+        //   Case x >=s hi:
+        //     (BEFORE) is always true, show (AFTER) is always true.
+        //     U(x - lo)               >=  U(hi - lo)
+        //     -- Lemma1 (x >= lo) --      -- Lemma1 (lo <= hi) --
+        //       x - lo                >=    hi - lo
+        //       x                     >=    hi
+        //     Equivalent to case assumption, so always true.
+        // QED.
       }
     } else if (hi_test == BoolTest::le) {
       if (lo_test == BoolTest::ge || lo_test == BoolTest::lt) {
+        // (CASE *3a)
+
+        // lo=lt,hi=le:    x <  lo  || !(x <= hi) -> testX_lohi_ltle: i < -100_000 || i > 100_000
+        //                                                    ->   i + 100_000 <u  200_001
+        //                                                    -> !(i + 100_000 >=u 200_001)
+        assert(lo_test == BoolTest::lt, "catch ge case");
+        // lo=ge,hi=le:  !(x >= lo) || !(x <= hi) -> ????
+
+        // Simplified version:
+        //   x < lo || x > hi                    (BEFORE)
+        //
+        // Transformed to:
+        //   x - lo >=u hi - lo + 1              (AFTER)
+        //
+        // This is a problematic case.
+        // Example:
+        //   lo = min_int, hi = max_int, x = 1
+        //   (BEFORE): 1 < min_int || 1 > max_int
+        //             -> false
+        //   (After)   U(1 - min_int) >= U(max_int - min_int + 1)
+        //             U(2^31 - 1)    >= U(2^32)
+        //               2^31 - 1     >=   0  (unexpected overflow!)
+        //             -> true
+        //
+        // But lo = min_int, hi = max_int is also the only problematic
+        // case. If we exclude this case, we know that hi - lo + 1
+        // cannot overflow:
+        //   lo > min_int || hi < max_int
+        //   0 <  hi - lo     < 2^32 - 1
+        //   1 <  hi - lo + 1 < 2^32
+        // And so it follows:
+        //   U(hi - lo + 1) = hi - lo + 1        (RHS-NO-OVERFLOW)
+        //
+        // Proof:
+        //   From IfNode::filtered_int_type, we get:
+        //     lo_type = [min_int .. max(min_int, lo->_hi-1)]
+        //     -> lo_type->_hi >= lo->_hi - 1
+        //     hi_type = [min(hi->_lo+1, max_int) .. max_int]
+        //     -> hi_type->_lo <= hi->_lo + 1
+        //   Given check from above:
+        //     lo_type->_hi < hi_type->_lo
+        //     -> lo->_hi - 1 < hi->_lo + 1
+        //     -> lo - 1 <  hi + 1
+        //     -> lo     <= hi + 1                        (LO-HI)
+        //   Note: this is a substantially weaker condition than elsewhere!
+        //         And it is the reason why we chose rhs = hi - lo + 1,
+        //         so that this can not underflow the unsigned computation.
+        //         We did this in JDK-8135069, before it was hi - lo, which
+        //         could have underflowed for lo = hi + 1. But now, we just
+        //         traded the underflow problem with an overflow problem,
+        //         as we saw above with the problematic case.
+        //
+        //   Case x <s lo:
+        //     (BEFORE) is always true, show (AFTER) is always true.
+        //     U(x - lo)               >=  U(hi - lo + 1)
+        //     -- Lemma2 (x < lo) --       -- (RHS-NO-OVERFLOW) --
+        //       x - lo + 2^32         >=    hi - lo + 1
+        //       x      + 2^32         >=    hi      + 1
+        //       x      + 2^32         >     hi
+        //     Always true by Lemma3.
+        //
+        //   Case lo <=s x <=s hi:
+        //     (BEFORE) is always false, show (AFTER) is always false.
+        //     U(x - lo)               >=  U(hi - lo + 1)
+        //     -- Lemma1 (x >= lo) --      -- (RHS-NO-OVERFLOW) --
+        //       x - lo                >=    hi - lo + 1
+        //       x                     >=    hi      + 1
+        //       x                     >     hi
+        //     Contradicts our case assumption x <=s hi, so always false.
+        //
+        //   Case x >s hi:
+        //     (BEFORE) is always true, show (AFTER) is always true.
+        //     U(x - lo)               >=  U(hi - lo + 1)
+        //     -- Lemma1 (x > lo) --       -- (RHS-NO-OVERFLOW) --
+        //       x - lo                >=    hi - lo + 1
+        //       x                     >=    hi      + 1
+        //       x                     >     hi
+        //     Equivalent to case assumption, so always true.
+        // QED.
+        //
+        // Discussion:
+        //   The fundamental issue is that the test "lo_type->_hi < hi_type->_lo"
+        //   only implies "lo <= hi + 1", and so "hi - lo" can underflow, and
+        //   "hi - lo + 1" can overflow the unsigned range. We discovered the
+        //   underflow in JDK-8135069, and then "fixed" it and now we have a
+        //   reproducer with overflow.
+        //
+        //   A very simple solution: just do the computations in long, so we
+        //   don't have overflow/underflow issues.
+        //
+        //   Alternatively: strenghthen the check "lo_type->_hi < hi_type->_lo"
+        //   to "lo_type->_hi + 1 < hi_type->_lo" (careful with overflow here!).
+        //     lo_type->_hi + 1 <  hi_type->_lo
+        //     lo->_hi - 1  + 1 <  hi->_lo + 1
+        //     lo->_hi          <= hi->_lo
+        //     lo               <= hi
+        //   Now we can use Lemma1: U(hi - lo) = hi - lo
+        //   And that would allow us to revert the change from JDK-8135069,
+        //   and go back to the solution of transforming:
+        //     x < lo || x > hi
+        //   Into:
+        //     x - lo >u hi - lo
+        //   However, that would restrict the optimization for some cases.
+        //   For example, this is currently transformed, and we would disable it:
+        //     x < 0 || x > -1
+        //   This one currently is folded, and it is actually folded to a constant!
+        //   So it would be a shame to destroy that.
+        //   However, it seems that the case
+        //     x < 0 || x > -2
+        //   is also constant folded, and replaced directly with a constant. So
+        //   probably we could figure out the same for the case in question.
+        //   Doing it with a CmpU instead of CmpUL may not matter much on 64 bit
+        //   machines. But it would also be more work to introduce long logic
+        //   here, so just strengthening the condition may be good enough.
+        //
+        // Severity of this Bug:
+        //   (CASE *3a) and (CASE *3b) are the only ones where we can not prove
+        //   correctness of the current implementation. And the cases that fail
+        //   are very limited:
+        //     lo = min_int
+        //     hi = max_int
+        //   For the equivalent patterns:
+        //     x < lo || x > hi            (CASE *3a)
+        //     x > hi || x < lo            (CASE *3b)
+        //
+        //   Range Checks have a different pattern:
+        //     i < 0 || i >= length
+        //   While length could in theory be max_int, lo is zero or
+        //   close to zero, and not min_int.
+        //
+        //   Further, these cases are only optimized if the range for
+        //     x < lo
+        //     x > hi
+        //   have no overlap provably. This prevents most general cases
+        //   where lo and hi are completely unknown. It requires specific
+        //   restrictions on lo and hi. For example:
+        //     lo = 0
+        //     hi >= 0
+        //   which would give us ranges:
+        //     x < lo  ->  x in [min_int .. -1]
+        //     x > hi  ->  x in [1 .. max_int]
+        //
+        //   It would be quite strange if someone relied on a check
+        //     x < lo || x > hi
+        //   where lo = min_int and hi = max_int were legitimate range.
+        //   Also: before optimization this check should say that
+        //   we are INSIDE the range, but after the optimization we
+        //   wrongly say we lay OUTSIDE the range. So if this was
+        //   an access check to a contiguous range, we would probably
+        //   just wrongly throw a bounds exception where access would
+        //   have been safe. The converse would have been worse: if
+        //   we had accessed memory where we should have thrown.
+        //
         adjusted_lim = igvn->transform(new SubINode(hi, lo));
         adjusted_lim = igvn->transform(new AddINode(adjusted_lim, igvn->intcon(1)));
         cond = BoolTest::lt;
       } else if (lo_test == BoolTest::gt || lo_test == BoolTest::le) {
+        // (CASE *4a)
+
+        // lo=le,hi=le:    x <= lo  || !(x <= hi) -> testX_lohi_lele: i <= -100_000 || i > 100_000
+        //                                                       -> !(i + 99_999 <u  200_000)
+        //                                                       ->   i + 99_999 >=u 200_000
+        assert(lo_test == BoolTest::le, "catch gt case");
+        // lo=gt,hi=le:   !(x > lo) || !(x <= hi) -> ????
+
+        // Simplified version:
+        //   x <= lo || x > hi                     (BEFORE)
+        //
+        // Transformed to:
+        //   x -  lo - 1  >=u hi - lo              (AFTER)
+        // Equivalent to:
+        //   x - (lo + 1) >=u hi - lo
+        //
+        // Proof:
+        //   From IfNode::filtered_int_type, we get:
+        //     lo_type = [min_int .. lo->_hi]
+        //     -> lo_type->_hi >= lo->_hi
+        //     hi_type = [min(hi->_lo+1, max_int) .. max_int]
+        //     -> hi_type->_lo <= hi->_lo + 1
+        //   Given check from above:
+        //     lo_type->_hi <  hi_type->_lo
+        //     -> lo->_hi   <  hi->_lo + 1
+        //     -> lo        <  hi      + 1
+        //     -> lo        <= hi                 (LO-HI)
+        //
+        //   Case A: lo = hi
+        //     Let y = lo = hi
+        //     -> x <= lo || x > hi     vs     x -  lo - 1  >=u hi - lo
+        //     -> x <= y  || x > y      vs     x -  y  - 1  >=u y  - y = 0
+        //        true                         true
+        //     Hence, (BEFORE) and (AFTER) are both always true.
+        //
+        //   Case B: lo < hi
+        //     Case x <= lo:
+        //       (BEFORE) is always true, show (AFTER) is always true.
+        //       Since lo < hi (Case B), S(lo+1) = lo+1 (no overflow):
+        //       -> x < lo+1
+        //       U(x - (lo + 1))          >=  U(hi - lo)
+        //       -- Lemma2 (x < lo+1) --      -- Lemma1 (lo <= hi) --
+        //         x - (lo + 1) + 2^32    >=    hi - lo
+        //         x -       1  + 2^32    >=    hi
+        //         x            + 2^32    >     hi
+        //       Always true by Lemma3.
+        //       Note: To apply Lemma2 above, we must use (Case B), we
+        //             could not have done it with (LO-HI) alone.
+        //
+        //     Case lo < x <= hi:
+        //       (BEFORE) is always false, show (AFTER) is always false.
+        //       Since lo < hi (Case B), S(lo+1) = lo+1 (no overflow):
+        //       -> x    >= lo+1
+        //       U(x - (lo + 1))          >=  U(hi - lo)
+        //       -- Lemma1 (x >= lo+1) --     -- Lemma1 (lo <= hi) --
+        //         x - (lo + 1)           >=    hi - lo
+        //         x -       1            >=    hi
+        //         x                      >     hi
+        //       Contradicts x <= hi, so always false.
+        //
+        //     Case x > hi:
+        //       (BEFORE) is always true, show (AFTER) is always true.
+        //       Since lo < hi (Case B), S(lo+1) = lo+1 (no overflow):
+        //       -> lo+1 <= hi
+        //       -> x > lo+1
+        //       U(x - (lo + 1))          >=  U(hi - lo)
+        //       -- Lemma1 (x >  lo+1) --     -- Lemma1 (lo <= hi) --
+        //         x - (lo + 1)           >=    hi - lo
+        //         x -       1            >=    hi
+        //         x                      >     hi
+        //     Equivalent to case assumption, so always true.
+        // QED.
         adjusted_lim = igvn->transform(new SubINode(hi, lo));
         lo = igvn->transform(new AddINode(lo, igvn->intcon(1)));
         cond = BoolTest::lt;
@@ -981,6 +1426,9 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
         return false;
       }
     } else {
+      // Not sure if this is possible. Maybe not. But if anything, this just prevents
+      // optimization, which is safe.
+      assert(false, "find me! A5");
       assert(igvn->_worklist.member(in(1)) && in(1)->Value(igvn) != igvn->type(in(1)), "unhandled hi_test: %d", hi_test);
       return false;
     }
@@ -988,6 +1436,8 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
     assert(this_bool->_test.is_less() && fail->_con, "incorrect test");
   } else if (lo_type != nullptr && hi_type != nullptr && lo_type->_lo > hi_type->_hi &&
              lo_type->_hi == max_jint && hi_type->_lo == min_jint && lo_test != BoolTest::ne) {
+
+    //tty->print_cr("lo > hi");
 
     // this_bool = <
     //   dom_bool = < (proj = True) or dom_bool = >= (proj = False)
@@ -1009,6 +1459,7 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
     swap(lo, hi);
     swap(lo_type, hi_type);
     swap(lo_test, hi_test);
+    // Swapping makes the debug info a bit hard to work with...
 
     assert((dom_bool->_test.is_less() && proj->_con) ||
            (dom_bool->_test.is_greater() && !proj->_con), "incorrect test");
@@ -1017,8 +1468,35 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
 
     if (lo_test == BoolTest::lt) {
       if (hi_test == BoolTest::lt || hi_test == BoolTest::ge) {
+        // lo=lt,hi=lt:    x < lo || !(x < hi) -> testX_hilo_ltlt: i >= 100_000 || i < -100_000
+        //                                                   ->   i + 100_000 >=u 200_000
+        //                                                   -> !(i + 100_000 <u 200_000)
+        if (hi_test == BoolTest::ge) { trigger = true; }
+
+        // Simplified version:
+        //   x < lo || x >= hi                      (BEFORE)
+        //
+        // Transformed to:
+        //   x - lo >=u hi - lo                     (AFTER)
+        //
+        // This is exaclty the same as (CASE *2a).
         cond = BoolTest::ge;
       } else if (hi_test == BoolTest::le || hi_test == BoolTest::gt) {
+        // CASE (*3b)
+        // lo=lt,hi=le:   x < lo || !(x <= hi) -> testX_hilo_lelt: i > 100_000 || i < -100_000
+        //                                                    ->   i + 100_000 >=u 200_001
+        //                                                    -> !(i + 100_000 >=u 200_001)
+        if (hi_test == BoolTest::gt) { trigger = true; }
+
+        // Simplified version:
+        //   x < lo || x > hi                    (BEFORE)
+        //
+        // Transformed to:
+        //   x - lo >=u hi - lo + 1              (AFTER)
+        //
+        // This is exaclty the same as (CASE *3a).
+        //
+        // We should also be able to construct an analogue problematic case, see test1c.
         adjusted_lim = igvn->transform(new SubINode(hi, lo));
         adjusted_lim = igvn->transform(new AddINode(adjusted_lim, igvn->intcon(1)));
         cond = BoolTest::ge;
@@ -1028,9 +1506,41 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
       }
     } else if (lo_test == BoolTest::le) {
       if (hi_test == BoolTest::lt || hi_test == BoolTest::ge) {
+        // (CASE *1b)
+        //
+        // lo=le,hi=lt:    x <= lo  || !(x < hi) -> testX_hilo_ltle: i >= 100_000 || i <= -100_000
+        //                                                      ->   i + 99_999 >=u 199_999
+        //                                                      -> !(i + 99_999 <u  199_999)
+        if (hi_test == BoolTest::ge) { trigger = true; }
+
+        // Simplified version:
+        //   x <= lo || x >= hi                    (BEFORE)
+        //
+        // Transformed to:
+        //   x -  lo - 1  >=u hi -  lo - 1         (AFTER)
+        // Equivalent to:
+        //   x - (lo + 1) >=u hi - (lo + 1)
+        //
+        // This is exaclty the same as (CASE *1a).
         lo = igvn->transform(new AddINode(lo, igvn->intcon(1)));
         cond = BoolTest::ge;
       } else if (hi_test == BoolTest::le || hi_test == BoolTest::gt) {
+        // (CASE *4b)
+        //
+        // lo=le,hi=le:    x <= lo || !(x <= hi) -> testX_hilo_lele: i > 100_000 || i <= -100_000
+        //                                                     ->    i + 99_999 >=u 200_000
+        //                                                     ->  !(i + 99_999 <u  200_000)
+        if (hi_test == BoolTest::gt) { trigger = true; }
+
+        // Simplified version:
+        //   x <= lo || x > hi                     (BEFORE)
+        //
+        // Transformed to:
+        //   x -  lo - 1  >=u hi - lo              (AFTER)
+        // Equivalent to:
+        //   x - (lo + 1) >=u hi - lo
+        //
+        // This is exactly the same as (CASE 4a*)
         adjusted_lim = igvn->transform(new SubINode(hi, lo));
         lo = igvn->transform(new AddINode(lo, igvn->intcon(1)));
         cond = BoolTest::ge;
@@ -1039,24 +1549,42 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
         return false;
       }
     } else {
+      assert(false, "catch B5");
       assert(igvn->_worklist.member(in(1)) && in(1)->Value(igvn) != igvn->type(in(1)), "unhandled lo_test: %d", lo_test);
       return false;
     }
     // this test was canonicalized
     assert(this_bool->_test.is_less() && !fail->_con, "incorrect test");
   } else {
+    //tty->print_cr("ELSE case.");
     const TypeInt* failtype = filtered_int_type(igvn, n, proj);
+    //tty->print_cr("checking for failtype overlap:");
     if (failtype != nullptr) {
+      //tty->print("lo failtype: "); failtype->dump_on(tty); tty->cr();
       const TypeInt* type2 = filtered_int_type(igvn, n, fail);
       if (type2 != nullptr) {
+        //tty->print("hi type2:    "); type2->dump_on(tty); tty->cr();
         if (failtype->filter(type2) == Type::TOP) {
+          // tty->print("join:        "); failtype->dump_on(tty); tty->cr();
           // previous if determines the result of this if so
           // replace Bool with constant
           igvn->replace_input_of(this, 1, igvn->intcon(success->_con));
+          //tty->print_cr("Previous covers this - replace this with constant.");
+          //assert(false, "check out this case");
+          //
+          // This seems ok.
+          // Example: testZ_3b, and maybe also testZ_3 if we chose the alternative solution.
+          // This is to catch cases like:
+          //   i < 0 || i > -2
+          // This condition is always true. The intersection of the cases:
+          //   i >= 0
+          //   i <= -2
+          // is empty. So we can constant fold the path.
           return true;
         }
       }
     }
+    //tty->print_cr("Fails in ELSE case.");
     return false;
   }
 
@@ -1075,6 +1603,10 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
 
   if (igvn->type(adjusted_lim)->is_int()->_lo < 0 &&
       !igvn->C->post_loop_opts_phase()) {
+    // This comes from JDK-8269230
+    // It does not impact the issue from above, if anything it just prevents
+    // or delays optimizations. I won't investigate further.
+    //
     // If range check elimination applies to this comparison, it includes code to protect from overflows that may
     // cause the main loop to be skipped entirely. Delay this transformation.
     // Example:
@@ -1100,9 +1632,14 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
   Node* newcmp = igvn->transform(new CmpUNode(adjusted_val, adjusted_lim));
   Node* newbool = igvn->transform(new BoolNode(newcmp, cond));
 
+  //tty->print_cr("newbool:");
+  //newbool->dump_bfs(4,0,"#");
+
   igvn->replace_input_of(dom_iff, 1, igvn->intcon(proj->_con));
   igvn->replace_input_of(this, 1, newbool);
 
+  //tty->print_cr("Success!");
+  assert(!trigger, "trigger");
   return true;
 }
 
