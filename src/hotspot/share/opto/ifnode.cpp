@@ -927,28 +927,17 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
   const TypeInt* lo_type = IfNode::filtered_int_type(igvn, n, otherproj);
   const TypeInt* hi_type = IfNode::filtered_int_type(igvn, n, success);
 
-  //if (lo_type != nullptr && hi_type != nullptr) {
-  //  tty->print_cr("IfNode::fold_compares_helper:");
-  //  tty->print("lo_type: "); lo_type->dump_on(tty); tty->cr();
-  //  tty->print("hi_type: "); hi_type->dump_on(tty); tty->cr();
-
-  //  tty->print_cr("lo / dom_bool:");
-  //  dom_bool->dump_bfs(2,0,"#");
-  //  tty->print_cr("hi / this_bool:");
-  //  tty->print_cr("expected to always be le, lt, ge, gt (see cmpi_folds)");
-  //  this_bool->dump_bfs(2,0,"#");
-  //}
-
   BoolTest::mask lo_test = dom_bool->_test._test;
   BoolTest::mask hi_test = this_bool->_test._test;
   BoolTest::mask cond = hi_test;
 
   assert(lo_test == BoolTest::lt ||
          lo_test == BoolTest::le ||
-         lo_test == BoolTest::gt ||  // rare
-         lo_test == BoolTest::ge ||  // rare
+         lo_test == BoolTest::gt ||
+         lo_test == BoolTest::ge ||
          lo_test == BoolTest::ne, "lo test options: %d", lo_test);
-  assert(hi_test == BoolTest::lt || hi_test == BoolTest::le, "hi test options: %d", hi_test);
+  assert(hi_test == BoolTest::lt ||
+         hi_test == BoolTest::le, "hi test options: %d", hi_test);
 
   // convert:
   //
@@ -1019,8 +1008,6 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
   //               = max_int + 1
   //              <= b       + 1
   //              <  b
-
-  bool trigger = false;
 
   // Figure out which of the two tests sets the upper bound and which
   // sets the lower bound if any.
@@ -1423,9 +1410,7 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
         return false;
       }
     } else {
-      // Not sure if this is possible. Maybe not. But if anything, this just prevents
-      // optimization, which is safe.
-      assert(false, "find me! A5");
+      assert(false, "is this path dead?");
       assert(igvn->_worklist.member(in(1)) && in(1)->Value(igvn) != igvn->type(in(1)), "unhandled hi_test: %d", hi_test);
       return false;
     }
@@ -1433,8 +1418,6 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
     assert(this_bool->_test.is_less() && fail->_con, "incorrect test");
   } else if (lo_type != nullptr && hi_type != nullptr && lo_type->_lo > hi_type->_hi &&
              lo_type->_hi == max_jint && hi_type->_lo == min_jint && lo_test != BoolTest::ne) {
-
-    //tty->print_cr("lo > hi");
 
     // this_bool = <
     //   dom_bool = < (proj = True) or dom_bool = >= (proj = False)
@@ -1465,11 +1448,10 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
 
     if (lo_test == BoolTest::lt) {
       if (hi_test == BoolTest::lt || hi_test == BoolTest::ge) {
-        // lo=lt,hi=lt:    x < lo || !(x < hi) -> testX_hilo_ltlt: i >= 100_000 || i < -100_000
-        //                                                   ->   i + 100_000 >=u 200_000
-        //                                                   -> !(i + 100_000 <u 200_000)
-        if (hi_test == BoolTest::ge) { trigger = true; }
-
+        // (CASE *2b)
+        // lo=lt,hi=lt:    x < lo || !(x <  hi)
+        // lo=lt,hi=ge:    x < lo ||   x >= hi
+        //
         // Simplified version:
         //   x < lo || x >= hi                      (BEFORE)
         //
@@ -1480,11 +1462,9 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
         cond = BoolTest::ge;
       } else if (hi_test == BoolTest::le || hi_test == BoolTest::gt) {
         // CASE (*3b)
-        // lo=lt,hi=le:   x < lo || !(x <= hi) -> testX_hilo_lelt: i > 100_000 || i < -100_000
-        //                                                    ->   i + 100_000 >=u 200_001
-        //                                                    -> !(i + 100_000 >=u 200_001)
-        if (hi_test == BoolTest::gt) { trigger = true; }
-
+        // lo=lt,hi=le:   x < lo || !(x <= hi)
+        // lo=lt,hi=gt:   x < lo ||   x >  hi
+        //
         // Simplified version:
         //   x < lo || x > hi                    (BEFORE)
         //
@@ -1492,8 +1472,6 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
         //   x - lo >=u hi - lo + 1              (AFTER)
         //
         // This is exaclty the same as (CASE *3a).
-        //
-        // We should also be able to construct an analogue problematic case, see test1c.
         adjusted_lim = igvn->transform(new SubINode(hi, lo));
         adjusted_lim = igvn->transform(new AddINode(adjusted_lim, igvn->intcon(1)));
         cond = BoolTest::ge;
@@ -1504,12 +1482,9 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
     } else if (lo_test == BoolTest::le) {
       if (hi_test == BoolTest::lt || hi_test == BoolTest::ge) {
         // (CASE *1b)
+        // lo=le,hi=lt:    x <= lo  || !(x <  hi)
+        // lo=le,hi=ge:    x <= lo  ||   x >= hi
         //
-        // lo=le,hi=lt:    x <= lo  || !(x < hi) -> testX_hilo_ltle: i >= 100_000 || i <= -100_000
-        //                                                      ->   i + 99_999 >=u 199_999
-        //                                                      -> !(i + 99_999 <u  199_999)
-        if (hi_test == BoolTest::ge) { trigger = true; }
-
         // Simplified version:
         //   x <= lo || x >= hi                    (BEFORE)
         //
@@ -1523,12 +1498,9 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
         cond = BoolTest::ge;
       } else if (hi_test == BoolTest::le || hi_test == BoolTest::gt) {
         // (CASE *4b)
+        // lo=le,hi=le:    x <= lo || !(x <= hi)
+        // lo=le,hi=gt:    x <= lo ||   x >  hi
         //
-        // lo=le,hi=le:    x <= lo || !(x <= hi) -> testX_hilo_lele: i > 100_000 || i <= -100_000
-        //                                                     ->    i + 99_999 >=u 200_000
-        //                                                     ->  !(i + 99_999 <u  200_000)
-        if (hi_test == BoolTest::gt) { trigger = true; }
-
         // Simplified version:
         //   x <= lo || x > hi                     (BEFORE)
         //
@@ -1546,7 +1518,7 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
         return false;
       }
     } else {
-      assert(false, "catch B5");
+      assert(false, "is this path dead?");
       assert(igvn->_worklist.member(in(1)) && in(1)->Value(igvn) != igvn->type(in(1)), "unhandled lo_test: %d", lo_test);
       return false;
     }
