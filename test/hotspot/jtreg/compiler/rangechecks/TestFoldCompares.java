@@ -57,87 +57,87 @@ public class TestFoldCompares {
 
     // ------------------------- Failing cases for JDK-8346420 ------------------------------
 
-// TODO: //    @Test
-// TODO: //    @Arguments(values = {Argument.NUMBER_42})
-// TODO: //    // Reported overflow case with wrong result in JDK-8346420
-// TODO: //    public static void test_Case3a_LTLE_overflow(int i) {
-// TODO: //        int minimum, maximum;
-// TODO: //        if (FLAG_FALSE) {
-// TODO: //            minimum = 0;
-// TODO: //            maximum = 1;
-// TODO: //        } else {
-// TODO: //            // Always goes to else-path
-// TODO: //            minimum = Integer.MIN_VALUE;
-// TODO: //            maximum = Integer.MAX_VALUE;
-// TODO: //        }
-// TODO: //        // i  < INT_MIN    || i  > MAX_INT
-// TODO: //        // 42 < INT_MIN    || 42 > MAX_INT
-// TODO: //        //    false           false
-// TODO: //        // => false
-// TODO: //        //
-// TODO: //        // C2 transforms this into:
-// TODO: //        // i  - minimum >=u (maximum - minimum) + 1
-// TODO: //        // 42 - INT_MIN >=u (INT_MAX - INT_MIN) + 1
-// TODO: //        // 42 + MIN_INT >=u -1                  + 1
-// TODO: //        //                  ------ overflow -------
-// TODO: //        // 42 + MIN_INT >=u 0
-// TODO: //        // => true
-// TODO: //        if (i < minimum || i > maximum) {
-// TODO: //            throw new RuntimeException("i can never be outside [min_int, max_int]");
-// TODO: //        }
-// TODO: //    }
-// TODO: //
-// TODO: //    @Test
-// TODO: //    @Arguments(values = {Argument.NUMBER_42})
-// TODO: //    // Same as  test_Case3a_LTLE_overflow, just with swapped conditions (JDK-8346420).
-// TODO: //    public static void test_Case3b_LTLE_overflow(int i) {
-// TODO: //        int minimum, maximum;
-// TODO: //        if (FLAG_FALSE) {
-// TODO: //            minimum = 0;
-// TODO: //            maximum = 1;
-// TODO: //        } else {
-// TODO: //            // Always goes to else-path
-// TODO: //            minimum = Integer.MIN_VALUE;
-// TODO: //            maximum = Integer.MAX_VALUE;
-// TODO: //        }
-// TODO: //        if (i > maximum || i < minimum) {
-// TODO: //            throw new RuntimeException("i can never be outside [min_int, max_int]");
-// TODO: //        }
-// TODO: //    }
+    @Test
+    @Arguments(values = {Argument.NUMBER_42})
+    // Reported overflow case with wrong result in JDK-8346420
+    public static void test_Case3a_LTLE_overflow(int i) {
+        int minimum, maximum;
+        if (FLAG_FALSE) {
+            minimum = 0;
+            maximum = 1;
+        } else {
+            // Always goes to else-path
+            minimum = Integer.MIN_VALUE;
+            maximum = Integer.MAX_VALUE;
+        }
+        // i  < INT_MIN    || i  > MAX_INT
+        // 42 < INT_MIN    || 42 > MAX_INT
+        //    false           false
+        // => false
+        //
+        // C2 transforms this into:
+        // i  - minimum >=u (maximum - minimum) + 1
+        // 42 - INT_MIN >=u (INT_MAX - INT_MIN) + 1
+        // 42 + MIN_INT >=u -1                  + 1
+        //                  ------ overflow -------
+        // 42 + MIN_INT >=u 0
+        // => true
+        if (i < minimum || i > maximum) {
+            throw new RuntimeException("i can never be outside [min_int, max_int]");
+        }
+    }
 
-// TODO: //    @Test
-// TODO: //    @Arguments(values = {Argument.NUMBER_42})
-// TODO: //    //  22  ConI  === 0  [[ 25 37 ]]  #int:0
-// TODO: //    //  35  ConI  === 0  [[ 37 ]]  #int:minint
-// TODO: //    //  33  ConI  === 0  [[ 38 81 ]]  #int:1
-// TODO: //    //  37  Phi  === 34 35 22  [[ 42 80 81 84 ]]  #int:minint..0, 0u..maxint+1
-// TODO: //    //  81  AddI  === _ 37 33  [[ 82 ]]
-// TODO: //    //  82  Node  === 81  [[ ]]                      <----- hook
-// TODO: //    //
-// TODO: //    // We hit this assert, also found during work for JDK-8346420:
-// TODO: //    // "fatal error: no reachable node should have no use"
-// TODO: //    //
-// TODO: //    // Because we compute:
-// TODO: //    //   lo = lo + 1
-// TODO: //    //   hook = Node(lo)
-// TODO: //    //   adjusted_val = i - lo
-// TODO: //    //   -> gvn transformed to: (i - lo) + -1
-// TODO: //    //   -> the "lo = lo + 1" AddI now is only used by the hook,
-// TODO: //    //      but once the hook is destroyed, it has no use any more,
-// TODO: //    //      and we hit the assert.
-// TODO: //    public static void test_Case4a_LELE_assert(int i) {
-// TODO: //        int minimum, maximum;
-// TODO: //        if (FLAG_FALSE) {
-// TODO: //            minimum = 0;
-// TODO: //            maximum = 1;
-// TODO: //        } else {
-// TODO: //            minimum = Integer.MIN_VALUE;
-// TODO: //            maximum = Integer.MAX_VALUE;
-// TODO: //        }
-// TODO: //        if (i <= minimum || i > maximum) {
-// TODO: //            throw new RuntimeException("should never be reached");
-// TODO: //        }
-// TODO: //    }
+    @Test
+    @Arguments(values = {Argument.NUMBER_42})
+    // Same as  test_Case3a_LTLE_overflow, just with swapped conditions (JDK-8346420).
+    public static void test_Case3b_LTLE_overflow(int i) {
+        int minimum, maximum;
+        if (FLAG_FALSE) {
+            minimum = 0;
+            maximum = 1;
+        } else {
+            // Always goes to else-path
+            minimum = Integer.MIN_VALUE;
+            maximum = Integer.MAX_VALUE;
+        }
+        if (i > maximum || i < minimum) {
+            throw new RuntimeException("i can never be outside [min_int, max_int]");
+        }
+    }
+
+    @Test
+    @Arguments(values = {Argument.NUMBER_42})
+    //  22  ConI  === 0  [[ 25 37 ]]  #int:0
+    //  35  ConI  === 0  [[ 37 ]]  #int:minint
+    //  33  ConI  === 0  [[ 38 81 ]]  #int:1
+    //  37  Phi  === 34 35 22  [[ 42 80 81 84 ]]  #int:minint..0, 0u..maxint+1
+    //  81  AddI  === _ 37 33  [[ 82 ]]
+    //  82  Node  === 81  [[ ]]                      <----- hook
+    //
+    // We hit this assert, also found during work for JDK-8346420:
+    // "fatal error: no reachable node should have no use"
+    //
+    // Because we compute:
+    //   lo = lo + 1
+    //   hook = Node(lo)
+    //   adjusted_val = i - lo
+    //   -> gvn transformed to: (i - lo) + -1
+    //   -> the "lo = lo + 1" AddI now is only used by the hook,
+    //      but once the hook is destroyed, it has no use any more,
+    //      and we hit the assert.
+    public static void test_Case4a_LELE_assert(int i) {
+        int minimum, maximum;
+        if (FLAG_FALSE) {
+            minimum = 0;
+            maximum = 1;
+        } else {
+            minimum = Integer.MIN_VALUE;
+            maximum = Integer.MAX_VALUE;
+        }
+        if (i <= minimum || i > maximum) {
+            throw new RuntimeException("should never be reached");
+        }
+    }
 
     // ------------------- IR tests to check that optimization was performed ------------------------
 
