@@ -55,7 +55,6 @@ import compiler.lib.template_framework.library.TestFrameworkClass;
 
 /**
  * For more basic examples, see TestFoldCompares.java
- * TODO: description
  */
 public class TestFoldComparesFuzzer {
     private static final Random RANDOM = Utils.getRandomInstance();
@@ -144,7 +143,7 @@ public class TestFoldComparesFuzzer {
 
     record Comparison(String lhs, Comparator cmp, String rhs) {
         public String toString() {
-            return "( " + lhs + " "+ cmp.getToken() + " " + rhs + ")";
+            return "(" + lhs + " "+ cmp.getToken() + " " + rhs + ")";
         }
 
         Comparison permuteRandom() {
@@ -161,10 +160,85 @@ public class TestFoldComparesFuzzer {
     // - limits: constant, range, array.length
     // - type: int and long
     interface TestMethodGenerator {
-        Template.OneArg<String> getTemplate();
+        Template.OneArg<String> getTestTemplate();
     }
 
+    // Some basic ranges with constant bounds.
+    // This should test some basic correctness, and also covers the case
+    // of bug JDK-8135069.
     static class TestMethodGeneratorConst implements TestMethodGenerator {
+        private final int con1 = INT_GEN.next();
+        private final int con2 = INT_GEN.next();
+
+        private final Comparison c1 = new Comparison("n", Comparator.random(), "con1").permuteRandom();
+        private final Comparison c2 = new Comparison("n", Comparator.random(), "con2").permuteRandom();
+
+        private final Template.OneArg<String> testTemplate = Template.make("methodName", (String methodName) -> scope(
+            let("con1", con1),
+            let("con2", con2),
+            let("c1", c1),
+            let("c2", c2),
+            """
+            static boolean #methodName(int n, int a, int b) {
+                int con1 = #con1;
+                int con2 = #con2;
+                if (#c1 || #c2) {
+                    return true;
+                }
+                return false;
+            }
+            """
+        ));
+
+        public Template.OneArg<String> getTestTemplate() { return testTemplate; }
+    }
+
+    // Cases where a and b are ranges that touch min_int/max_int.
+    // Note: if con1=0 and con2=1 then this is like the cases:
+    // - test_Case3a_LTLE_overflow
+    // - test_Case3b_LTLE_overflow
+    // - test_Case4a_LELE_assert
+    //
+    // Hence, I think this test gives us quite good coverage for the kinds of bugs
+    // such as JDK-8346420.
+    static class TestMethodGeneratorWithIf implements TestMethodGenerator {
+        private final int con1 = INT_GEN.next();
+        private final int con2 = INT_GEN.next();
+        private final String m1 = RANDOM.nextBoolean() ? "Integer.MIN_VALUE" : "Integer.MAX_VALUE";
+        private final String m2 = RANDOM.nextBoolean() ? "Integer.MIN_VALUE" : "Integer.MAX_VALUE";
+
+        private final Comparison c1 = new Comparison("n", Comparator.random(), "a").permuteRandom();
+        private final Comparison c2 = new Comparison("n", Comparator.random(), "b").permuteRandom();
+
+        private final Template.OneArg<String> testTemplate = Template.make("methodName", (String methodName) -> scope(
+            let("con1", con1),
+            let("con2", con2),
+            let("m1", m1),
+            let("m2", m2),
+            let("c1", c1),
+            let("c2", c2),
+            """
+            static boolean #methodName(int n, int a, int b) {
+                if (a < b) {
+                    a = #con1;
+                    b = #con2;
+                } else {
+                    a = #m1;
+                    b = #m2;
+                }
+                if (#c1 || #c2) {
+                    return true;
+                }
+                return false;
+            }
+            """
+        ));
+
+        public Template.OneArg<String> getTestTemplate() { return testTemplate; }
+    }
+
+    // Just for good practice: add some case where the ranges are more free.
+    static class TestMethodGeneratorRanges implements TestMethodGenerator {
         private final int n_hi = INT_GEN.next();
         private final int n_lo = INT_GEN.next();
         private final int a_hi = INT_GEN.next();
@@ -186,19 +260,10 @@ public class TestFoldComparesFuzzer {
             let("c2", c2),
             """
             static boolean #methodName(int n, int a, int b) {
-                //n = Math.min(#n_hi, Math.max(#n_lo, n));
-                //a = Math.min(#a_hi, Math.max(#a_lo, a));
-                //b = Math.min(#b_hi, Math.max(#b_lo, b));
-
-                if (a > b) {
-                    a = #a_lo; // 0;
-                    b = #b_lo; // 1;
-                } else {
-                    a = #a_hi; // Integer.MIN_VALUE;
-                    b = #b_hi; // Integer.MAX_VALUE;
-                }
-
-                if (n < a || n > b) {
+                n = Math.min(#n_hi, Math.max(#n_lo, n));
+                a = Math.min(#a_hi, Math.max(#a_lo, a));
+                b = Math.min(#b_hi, Math.max(#b_lo, b));
+                if (#c1 || #c2) {
                     return true;
                 }
                 return false;
@@ -206,11 +271,17 @@ public class TestFoldComparesFuzzer {
             """
         ));
 
-        public Template.OneArg<String> getTemplate() { return template; }
+        public Template.OneArg<String> getTestTemplate() { return template; }
     }
 
     public static TemplateToken generateTest() {
-        Template.OneArg<String> testMethodTemplate = new TestMethodGeneratorConst().getTemplate();
+        TestMethodGenerator tg = switch(RANDOM.nextInt(3)) {
+            case 0 -> new TestMethodGeneratorConst();
+            case 1 -> new TestMethodGeneratorWithIf();
+            case 2 -> new TestMethodGeneratorRanges();
+            default -> throw new RuntimeException("not expected");
+        };
+        Template.OneArg<String> testMethodTemplate = tg.getTestTemplate();
 
         // TODO: Xcomp or not?
         var testTemplate = Template.make(() -> scope(
