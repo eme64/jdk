@@ -114,7 +114,7 @@ public class TestFoldCompares {
     //  81  AddI  === _ 37 33  [[ 82 ]]
     //  82  Node  === 81  [[ ]]                      <----- hook
     //
-    // We hit this assert, also found during work for JDK-8346420:
+    // We hit this assert, found while working on JDK-8346420:
     // "fatal error: no reachable node should have no use"
     //
     // Because we compute:

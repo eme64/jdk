@@ -1593,6 +1593,19 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
     adjusted_lim = igvn->transform(new SubINode(hi, lo));
   }
   hook->destruct(igvn);
+  if (lo->outcnt() == 0) {
+    // The hook kept lo alive through the transforms, but now we
+    // don't need it any more, and have to add it to the worklist
+    // for being deleted later.
+    // Example how it can happen:
+    //   lo = lo + 1 // see (Case *4b)
+    //   hook = Node(lo)
+    //   adjusted_val = n - lo
+    //   -> gvn transformed to: (n - lo) + -1
+    //   -> the "lo = lo + 1" AddI now is only used by the hook.
+    igvn->_worklist.push(lo);
+  }
+  lo = nullptr; // don't use it any more.
 
   if (adjusted_val->is_top() || adjusted_lim->is_top()) {
     return false;
