@@ -1567,7 +1567,7 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
   hook->destruct(igvn);
   if (lo->outcnt() == 0) {
     // The hook kept lo alive through the transforms, but now we
-    // don't need it any more, and have to add it to the worklist
+    // don't need it any more, and have to remove it.
     // for being deleted later.
     // Example how it can happen:
     //   lo = lo + 1 // see (Case *4b)
@@ -1575,7 +1575,7 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
     //   adjusted_val = n - lo
     //   -> gvn transformed to: (n - lo) + -1
     //   -> the "lo = lo + 1" AddI now is only used by the hook.
-    igvn->_worklist.push(lo);
+    igvn->remove_dead_node(lo);
   }
   lo = nullptr; // don't use it any more.
 
@@ -1585,10 +1585,6 @@ bool IfNode::fold_compares_helper(IfProjNode* proj, IfProjNode* success, IfProjN
 
   if (igvn->type(adjusted_lim)->is_int()->_lo < 0 &&
       !igvn->C->post_loop_opts_phase()) {
-    // This comes from JDK-8269230
-    // It does not impact the issue from above, if anything it just prevents
-    // or delays optimizations. I won't investigate further.
-    //
     // If range check elimination applies to this comparison, it includes code to protect from overflows that may
     // cause the main loop to be skipped entirely. Delay this transformation.
     // Example:
