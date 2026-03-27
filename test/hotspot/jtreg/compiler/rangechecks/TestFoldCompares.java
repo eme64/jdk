@@ -27,14 +27,14 @@
  * @summary Test logic in IfNode::fold_compares, which folds 2 signed comparisons
  *          into a single comparison.
  * @library /test/lib /
- * @run main ${test.main.class} vanilla
+ * @run main ${test.main.class}
  */
 
 /*
  * @test id=Xcomp
  * @bug 8346420
  * @library /test/lib /
- * @run main ${test.main.class} Xcomp
+ * @run main ${test.main.class} -Xcomp -XX:-TieredCompilation -XX:CompileCommand=compileonly,${test.main.class}::test*
  */
 
 package compiler.rangechecks;
@@ -51,16 +51,12 @@ public class TestFoldCompares {
 
     public static void main(String[] args) {
         TestFramework framework = new TestFramework();
-        switch (args[0]) {
-            case "vanilla" -> { /* no extra flags */ }
-            case "Xcomp"   -> { framework.addFlags("-Xcomp", "-XX:-TieredCompilation", "-XX:CompileCommand=compileonly,compiler.rangechecks.TestFoldCompares::test*"); }
-            default -> { throw new RuntimeException("Test argument not recognized: " + args[0]); }
-        };
+        framework.addFlags(args);
         framework.start();
     }
 
-// TODO: //    // ------------------------- Failing cases for JDK-8346420 ------------------------------
-// TODO: //
+    // ------------------------- Failing cases for JDK-8346420 ------------------------------
+
 // TODO: //    @Test
 // TODO: //    @Arguments(values = {Argument.NUMBER_42})
 // TODO: //    // Reported overflow case with wrong result in JDK-8346420
@@ -108,7 +104,7 @@ public class TestFoldCompares {
 // TODO: //            throw new RuntimeException("i can never be outside [min_int, max_int]");
 // TODO: //        }
 // TODO: //    }
-// TODO: //
+
 // TODO: //    @Test
 // TODO: //    @Arguments(values = {Argument.NUMBER_42})
 // TODO: //    //  22  ConI  === 0  [[ 25 37 ]]  #int:0
