@@ -55,6 +55,16 @@ import compiler.lib.template_framework.library.TestFrameworkClass;
 
 /**
  * For more basic examples, see TestFoldCompares.java
+ *
+ * I'm only covering some basic cases to test the fundamental
+ * logic inside IfNode::fold_compares_helper. In the future, we could
+ * add more cases:
+ * - Cases with array length, so a null-check is added between
+ *   the two conditions, see test_array_length_and_null_check_1
+ * - Cases with switch
+ * - Extend to long
+ * - Add IR rules - Currently difficult because not all cases are
+ *   consistently optimized, not all permutations are covered.
  */
 public class TestFoldComparesFuzzer {
     private static final Random RANDOM = Utils.getRandomInstance();
@@ -87,9 +97,11 @@ public class TestFoldComparesFuzzer {
         // Create a list to collect all tests.
         List<TemplateToken> testTemplateTokens = new ArrayList<>();
 
-        // TODO: adjust number
         for (int i = 0; i < 100; i++) {
-            testTemplateTokens.add(generateTest());
+            testTemplateTokens.add(generateTest(/* no warmup, like -Xcomp */ 0));
+        }
+        for (int i = 0; i < 5; i++) {
+            testTemplateTokens.add(generateTest(/* with warmup, slower */ 10_000));
         }
 
         // Create the test class, which runs all testTemplateTokens.
@@ -151,14 +163,6 @@ public class TestFoldComparesFuzzer {
         }
     }
 
-    // TODO: brainstorming
-    //
-    // - All permutations of tests. All comparisons.
-    // - Cases where we are always in/out / mixed.
-    // - Cases with array length.
-    // - Cases with switch
-    // - limits: constant, range, array.length
-    // - type: int and long
     interface TestMethodGenerator {
         Template.OneArg<String> getTestTemplate();
     }
@@ -274,7 +278,7 @@ public class TestFoldComparesFuzzer {
         public Template.OneArg<String> getTestTemplate() { return template; }
     }
 
-    public static TemplateToken generateTest() {
+    public static TemplateToken generateTest(int warmup) {
         TestMethodGenerator tg = switch(RANDOM.nextInt(3)) {
             case 0 -> new TestMethodGeneratorConst();
             case 1 -> new TestMethodGeneratorWithIf();
@@ -283,12 +287,12 @@ public class TestFoldComparesFuzzer {
         };
         Template.OneArg<String> testMethodTemplate = tg.getTestTemplate();
 
-        // TODO: Xcomp or not?
         var testTemplate = Template.make(() -> scope(
+            let("warmup", warmup / 100),
             """
             // --- $test start ---
             @Run(test = "$test")
-            @Warmup(0) // like XComp
+            @Warmup(#warmup)
             public static void $run() {
                 for (int i = 0; i < 100; i++) {
                     // Generate random values.
